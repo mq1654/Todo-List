@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 min-h-screen;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
