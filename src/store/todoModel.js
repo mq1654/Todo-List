@@ -21,7 +21,7 @@ const todoModel = {
     let result = state.items.filter((item) => {
       if (state.filter === 'active') return !item.completed
       if (state.filter === 'completed') return item.completed
-      return true
+      return !item.completed // 'all' giờ đây cũng sẽ ẩn các task đã hoàn thành theo yêu cầu
     })
 
     if (state.categoryFilter !== 'all') {
