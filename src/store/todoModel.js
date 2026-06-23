@@ -111,6 +111,18 @@ const todoModel = {
   toggleShowOverdueOnly: action((state) => {
     state.showOverdueOnly = !state.showOverdueOnly
   }),
+
+  migrateCategory: action((state, payload) => {
+    const { from, to } = payload
+    state.items.forEach(item => {
+      if (item.category === from) {
+        item.category = to
+      }
+    })
+    if (state.categoryFilter === from) {
+      state.categoryFilter = 'all'
+    }
+  }),
 }
 
 export default todoModel

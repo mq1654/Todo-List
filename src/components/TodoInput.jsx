@@ -1,4 +1,5 @@
 import { useFormik } from 'formik'
+import { useStoreState } from 'easy-peasy'
 import { todoSchema } from '../schemas/todoSchema'
 
 const EMPTY_VALUES = {
@@ -9,7 +10,6 @@ const EMPTY_VALUES = {
   dueDate: '',
 }
 
-const CATEGORIES = ['Work', 'Personal', 'Learning']
 const PRIORITIES = ['High', 'Medium', 'Low']
 
 function FieldError({ message }) {
@@ -20,10 +20,10 @@ function FieldError({ message }) {
 function FormInput({ id, label, isRequired, error, touched, optionalText, children }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-semibold text-slate-700 mb-1.5">
+      <label htmlFor={id} className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">
         {label}
         {isRequired && <span className="text-red-400 ml-1">*</span>}
-        {optionalText && <span className="ml-1.5 text-xs font-normal text-slate-400">({optionalText})</span>}
+        {optionalText && <span className="ml-1.5 text-xs font-normal text-slate-400 dark:text-slate-500">({optionalText})</span>}
       </label>
       {children}
       {touched && <FieldError message={error} />}
@@ -33,6 +33,7 @@ function FormInput({ id, label, isRequired, error, touched, optionalText, childr
 
 function TodoInput({ onSubmit, initialValues = EMPTY_VALUES, onCancel }) {
   const isEditMode = initialValues !== EMPTY_VALUES && initialValues.title !== ''
+  const categories = useStoreState(state => state.settings?.categories || ['Work', 'Personal', 'Learning'])
 
   let initialFormattedDate = ''
   if (initialValues.dueDate) {
@@ -89,16 +90,16 @@ function TodoInput({ onSubmit, initialValues = EMPTY_VALUES, onCancel }) {
     formik.setFieldValue('dueDate', formatted)
   }
 
-  const baseInputClass = "w-full px-3.5 py-2.5 text-sm rounded-lg border bg-slate-50 text-slate-900 transition-colors outline-none focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent placeholder:text-slate-400"
+  const baseInputClass = "w-full px-3.5 py-2.5 text-sm rounded-lg border bg-slate-50 text-slate-900 transition-colors outline-none focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent placeholder:text-slate-400 dark:bg-slate-900 dark:text-white dark:focus:bg-slate-900 dark:focus:ring-slate-500 dark:placeholder-slate-500"
   
   const getInputClass = (field) => 
-    `${baseInputClass} ${formik.touched[field] && formik.errors[field] ? 'border-red-400 focus:ring-red-400' : 'border-slate-200'}`
+    `${baseInputClass} ${formik.touched[field] && formik.errors[field] ? 'border-red-400 focus:ring-red-400 dark:border-red-500 dark:focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`
 
   return (
     <form
       onSubmit={formik.handleSubmit}
       noValidate
-      className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4"
+      className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4 dark:bg-slate-800 dark:border-slate-700"
     >
       <FormInput id="title" label="Title" isRequired error={formik.errors.title} touched={formik.touched.title}>
         <input
@@ -135,7 +136,7 @@ function TodoInput({ onSubmit, initialValues = EMPTY_VALUES, onCancel }) {
             onBlur={formik.handleBlur}
             className={getInputClass('category')}
           >
-            {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
           </select>
         </FormInput>
 
@@ -153,7 +154,7 @@ function TodoInput({ onSubmit, initialValues = EMPTY_VALUES, onCancel }) {
         </FormInput>
       </div>
 
-      <FormInput id="dueDate" label="Due Date" optionalText="DD-MM-YYYY" error={formik.errors.dueDate} touched={formik.touched.dueDate}>
+      <FormInput id="dueDate" label="Due Date" error={formik.errors.dueDate} touched={formik.touched.dueDate}>
         <input
           id="dueDate"
           name="dueDate"
@@ -170,7 +171,7 @@ function TodoInput({ onSubmit, initialValues = EMPTY_VALUES, onCancel }) {
         <button
           type="submit"
           disabled={formik.isSubmitting}
-          className="px-4 py-2 text-sm font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 disabled:opacity-50"
+          className="px-4 py-2 text-sm font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 disabled:opacity-50 dark:bg-slate-700 dark:hover:bg-slate-600 dark:focus:ring-slate-500 dark:focus:ring-offset-slate-800"
         >
           {isEditMode ? 'Save Changes' : 'Add Task'}
         </button>
@@ -178,7 +179,7 @@ function TodoInput({ onSubmit, initialValues = EMPTY_VALUES, onCancel }) {
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400"
+            className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:focus:ring-slate-500 dark:focus:ring-offset-slate-800"
           >
             Cancel
           </button>
