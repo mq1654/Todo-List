@@ -1,6 +1,7 @@
 import { action } from 'easy-peasy'
+import { SettingsModel } from './types'
 
-const settingsModel = {
+const settingsModel : SettingsModel = {
   theme: 'light',
   categories: ['Work', 'Personal', 'Learning'],
   

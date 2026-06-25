@@ -1,8 +1,9 @@
 import { action, computed } from 'easy-peasy'
+import { TodoModel } from './types';
 
-const priorityValue = { High: 3, Medium: 2, Low: 1 }
+const priorityValue: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
 
-const todoModel = {
+const todoModel : TodoModel = {
   items: [],
   filter: 'all',
   searchTerm: '',
@@ -21,7 +22,7 @@ const todoModel = {
     let result = state.items.filter((item) => {
       if (state.filter === 'active') return !item.completed
       if (state.filter === 'completed') return item.completed
-      return !item.completed // 'all' giờ đây cũng sẽ ẩn các task đã hoàn thành theo yêu cầu
+      return !item.completed
     })
 
     if (state.categoryFilter !== 'all') {
@@ -47,7 +48,7 @@ const todoModel = {
     if (state.sortByPriority) {
       result = [...result].sort((a, b) => priorityValue[b.priority] - priorityValue[a.priority])
     } else {
-      result = [...result].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      result = [...result].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     }
 
     return result
@@ -60,7 +61,7 @@ const todoModel = {
       description: payload.description ? payload.description.trim() : '',
       category: payload.category,
       priority: payload.priority,
-      dueDate: payload.dueDate || '',
+      dueDate: payload.dueDate,
       completed: false,
       createdAt: new Date().toISOString(),
     })
@@ -79,7 +80,7 @@ const todoModel = {
         description: payload.description ? payload.description.trim() : '',
         category: payload.category,
         priority: payload.priority,
-        dueDate: payload.dueDate || '',
+        dueDate: payload.dueDate,
         updatedAt: new Date().toISOString(),
       }
     }
