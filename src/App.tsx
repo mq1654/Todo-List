@@ -8,8 +8,8 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<TodoPage />} />
-        <Route path="/todo/:id" element={<TodoDetail />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/todoDetail/:id" element={<TodoDetail />} />
+        <Route path="/setting" element={<SettingsPage />} />
       </Routes>
     </Router>
   )

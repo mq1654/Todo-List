@@ -1,11 +1,17 @@
-import { useStoreActions, useStoreState } from 'easy-peasy'
+import { useStoreActions, useStoreState } from '../store'
 import { useNavigate } from 'react-router-dom'
 import { Settings } from 'lucide-react'
 import TodoInput from '../components/TodoInput'
 import TodoFilter from '../components/TodoFilter'
 import TodoList from '../components/TodoList'
+import { useUrlSync } from '../hooks/useUrlSync'
 
-function StatBadge({ count, label }) {
+interface StatBadgeProps {
+  count: number
+  label: string
+}
+
+function StatBadge({ count, label }: StatBadgeProps) {
   return (
     <div className="text-center">
       <p className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">{count}</p>
@@ -15,6 +21,8 @@ function StatBadge({ count, label }) {
 }
 
 function TodoPage() {
+  useUrlSync()
+
   const add = useStoreActions((actions) => actions.todos.add)
   const totalCount = useStoreState((state) => state.todos.totalCount)
   const activeCount = useStoreState((state) => state.todos.activeCount)
@@ -39,7 +47,7 @@ function TodoPage() {
               </div>
             )}
             <button 
-              onClick={() => navigate('/settings')}
+              onClick={() => navigate('/setting')}
               className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors dark:hover:bg-slate-700 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-400"
               aria-label="Settings"
             >

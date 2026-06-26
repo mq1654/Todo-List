@@ -1,22 +1,27 @@
-import { useState, memo } from 'react'
-import { useStoreActions } from 'easy-peasy'
-import { useNavigate } from 'react-router-dom'
-import { Trash2, Pencil, Check, Circle, Calendar, Tag } from 'lucide-react'
-import TodoInput from './TodoInput'
+import React, { useState, memo } from 'react';
+import { useStoreActions } from '../store'; 
+import { useNavigate } from 'react-router-dom';
+import { Trash2, Pencil, Check, Circle, Calendar, Tag } from 'lucide-react';
+import TodoInput from './TodoInput';
+import type { Todo, TodoPayload } from '../store/types';
 
-function getPriorityColor(priority) {
+interface TodoItemProps {
+  item: Todo;
+}
+
+function getPriorityColor(priority: Todo['priority']) {
   if (priority === 'High') return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50'
   if (priority === 'Medium') return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50'
   return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
 }
 
-function isOverdue(dueDate, completed) {
+function isOverdue(dueDate: string | null, completed: boolean) {
   if (completed || !dueDate) return false
   const todayStr = new Date().toISOString().split('T')[0]
   return dueDate < todayStr
 }
 
-const TodoItem = memo(function TodoItem({ item }) {
+const TodoItem: React.FC<TodoItemProps> = ({ item }) => {
   const [isEditing, setIsEditing] = useState(false)
   const navigate = useNavigate()
 
@@ -24,7 +29,7 @@ const TodoItem = memo(function TodoItem({ item }) {
   const update = useStoreActions((actions) => actions.todos.update)
   const toggleStatus = useStoreActions((actions) => actions.todos.toggleStatus)
 
-  function handleUpdate(values) {
+  function handleUpdate(values: TodoPayload) {
     update({ id: item.id, ...values })
     setIsEditing(false)
   }
@@ -69,7 +74,7 @@ const TodoItem = memo(function TodoItem({ item }) {
 
       <div 
         className="flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
-        onClick={() => navigate(`/todo/${item.id}`)}
+        onClick={() => navigate(`/todoDetail/${item.id}`)}
       >
         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
           <span
@@ -129,6 +134,6 @@ const TodoItem = memo(function TodoItem({ item }) {
       </div>
     </div>
   )
-})
+}
 
-export default TodoItem
+export default memo(TodoItem)

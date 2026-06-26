@@ -61,7 +61,7 @@ const todoModel : TodoModel = {
       description: payload.description ? payload.description.trim() : '',
       category: payload.category,
       priority: payload.priority,
-      dueDate: payload.dueDate,
+      dueDate: payload.dueDate ?? '',
       completed: false,
       createdAt: new Date().toISOString(),
     })
@@ -80,7 +80,7 @@ const todoModel : TodoModel = {
         description: payload.description ? payload.description.trim() : '',
         category: payload.category,
         priority: payload.priority,
-        dueDate: payload.dueDate,
+        dueDate: payload.dueDate ?? '',
         updatedAt: new Date().toISOString(),
       }
     }
@@ -111,6 +111,14 @@ const todoModel : TodoModel = {
 
   toggleShowOverdueOnly: action((state) => {
     state.showOverdueOnly = !state.showOverdueOnly
+  }),
+
+  setSortByPriority: action((state, value) => {
+    state.sortByPriority = value
+  }),
+
+  setShowOverdueOnly: action((state, value) => {
+    state.showOverdueOnly = value
   }),
 
   migrateCategory: action((state, payload) => {

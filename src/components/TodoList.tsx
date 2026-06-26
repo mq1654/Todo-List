@@ -1,9 +1,14 @@
-import { useStoreState } from 'easy-peasy'
+import { useStoreState } from '../store'; 
+import type { TodoModel } from '../store/types'; 
 import { ClipboardList } from 'lucide-react'
 import TodoItem from './TodoItem'
 
-function EmptyState({ filter, searchTerm }) {
-  const isFiltered = filter !== 'all' || searchTerm.trim().length > 0
+interface EmptyStateProps {
+  filter: TodoModel['filter'];  
+  searchTerm: TodoModel['searchTerm'];
+}
+function EmptyState({ filter, searchTerm }: EmptyStateProps) {
+  const isFiltered = filter !== 'all' || searchTerm.trim().length > 0;
 
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">

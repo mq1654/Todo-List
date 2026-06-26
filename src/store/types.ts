@@ -6,10 +6,18 @@ export interface Todo {
   description: string;
   category: string;
   priority: 'High' | 'Medium' | 'Low';
-  dueDate: string | null;
+  dueDate: string;
   completed: boolean;
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface TodoPayload {
+  title: string;
+  description: string;
+  category: string;
+  priority: 'High' | 'Medium' | 'Low';
+  dueDate: string | null;
 }
 
 export interface TodoModel {
@@ -25,9 +33,9 @@ export interface TodoModel {
   completedCount: Computed<TodoModel, number>;
   filteredItems: Computed<TodoModel, Todo[]>;
 
-  add: Action<TodoModel, { title: string; description: string; category: string; priority: 'High' | 'Medium' | 'Low'; dueDate: string | null }>;
+  add: Action<TodoModel, TodoPayload>;
   remove: Action<TodoModel, string>;
-  update: Action<TodoModel, { id: string; title: string; description: string; category: string; priority: 'High' | 'Medium' | 'Low'; dueDate: string | null }>;
+  update: Action<TodoModel, TodoPayload & { id: string }>;
   toggleStatus: Action<TodoModel, string>;
 
   setFilter: Action<TodoModel, 'all' | 'active' | 'completed'>;
@@ -35,6 +43,8 @@ export interface TodoModel {
   setCategoryFilter: Action<TodoModel, string>;
   toggleSortByPriority: Action<TodoModel>;
   toggleShowOverdueOnly: Action<TodoModel>;
+  setSortByPriority: Action<TodoModel, boolean>;
+  setShowOverdueOnly: Action<TodoModel, boolean>;
 
   migrateCategory: Action<TodoModel, { from: string; to: string }>;
 }

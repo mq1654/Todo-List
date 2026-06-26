@@ -5,10 +5,11 @@ import { StoreModel } from './types';
 
 export const store = createStore<StoreModel>({
   todos: persist(todoModel, {
-    storage: 'localStorage'
+    storage: 'localStorage',
+    allow: ['items']
   }),
   settings: persist(settingsModel, {
-    storage: 'localStorage'
+    storage: 'localStorage',
   }),
 });
 

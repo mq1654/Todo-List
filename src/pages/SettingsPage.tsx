@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useStoreState, useStoreActions } from 'easy-peasy'
+import { useStoreState, useStoreActions } from '../store'
 import { ArrowLeft, Trash2, Plus, Pencil, Check, X, ChevronDown } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -16,12 +16,12 @@ export default function SettingsPage() {
   const migrateCategory = useStoreActions(actions => actions.todos.migrateCategory)
 
   const [newCat, setNewCat] = useState('')
-  const [selectedCatToDelete, setSelectedCatToDelete] = useState(categories[0] || '')
+  const [selectedCatToDelete, setSelectedCatToDelete] = useState<string>(categories[0] || '')
   
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [editingCat, setEditingCat] = useState(null)
+  const [editingCat, setEditingCat] = useState<string | null>(null)
   const [editCatName, setEditCatName] = useState('')
-  const dropdownRef = useRef(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!categories.includes(selectedCatToDelete)) {
@@ -30,8 +30,8 @@ export default function SettingsPage() {
   }, [categories, selectedCatToDelete])
 
   useEffect(() => {
-    function handleClickOutside(e) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsDropdownOpen(false)
         setEditingCat(null)
       }
@@ -40,7 +40,7 @@ export default function SettingsPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  function handleAddCategory(e) {
+  function handleAddCategory(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (newCat.trim()) {
       addCategory(newCat)
@@ -48,7 +48,7 @@ export default function SettingsPage() {
     }
   }
 
-  function handleRenameCategory(oldCat) {
+  function handleRenameCategory(oldCat: string) {
     const newTrimmed = editCatName.trim()
     if (!newTrimmed || newTrimmed === oldCat) {
       setEditingCat(null)
@@ -68,7 +68,7 @@ export default function SettingsPage() {
     setEditingCat(null)
   }
 
-  function handleDeleteCategory(cat) {
+  function handleDeleteCategory(cat: string) {
     const tasksInCat = items.filter(item => item.category === cat)
     if (tasksInCat.length > 0) {
       if (window.confirm(`Do you want to move all tasks in this category to the default category (Uncategorized)?`)) {
@@ -124,7 +124,7 @@ export default function SettingsPage() {
               <input 
                 type="text" 
                 value={newCat}
-                onChange={e => setNewCat(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCat(e.target.value)}
                 placeholder="Add new category (e.g. Freelance)" 
                 className="flex-1 px-3.5 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors dark:bg-slate-900 dark:border-slate-600 dark:text-white dark:focus:ring-slate-500 dark:focus:bg-slate-800 dark:placeholder-slate-500"
               />
@@ -151,15 +151,15 @@ export default function SettingsPage() {
                 {isDropdownOpen && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden dark:bg-slate-800 dark:border-slate-700">
                     <ul className="max-h-60 overflow-y-auto py-1">
-                      {categories.map(cat => (
+                      {categories.map((cat: string) => (
                         <li key={cat} className="group flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                           {editingCat === cat ? (
                             <div className="flex items-center gap-2 w-full">
                               <input
                                 autoFocus
                                 value={editCatName}
-                                onChange={e => setEditCatName(e.target.value)}
-                                onKeyDown={e => {
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditCatName(e.target.value)}
+                                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                                   if (e.key === 'Enter') handleRenameCategory(cat)
                                   if (e.key === 'Escape') setEditingCat(null)
                                 }}
@@ -182,7 +182,7 @@ export default function SettingsPage() {
                               </span>
                               <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                 <button
-                                  onClick={(e) => {
+                                  onClick={(e: React.MouseEvent) => {
                                     e.stopPropagation()
                                     setEditingCat(cat)
                                     setEditCatName(cat)
@@ -192,7 +192,7 @@ export default function SettingsPage() {
                                   <Pencil size={14} />
                                 </button>
                                 <button
-                                  onClick={(e) => {
+                                  onClick={(e: React.MouseEvent) => {
                                     e.stopPropagation()
                                     handleDeleteCategory(cat)
                                   }}

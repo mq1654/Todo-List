@@ -22,7 +22,7 @@ export const todoSchema = Yup.object({
       if (!/^\d{2}-\d{2}-\d{4}$/.test(value)) return false
       const [day, month, year] = value.split('-')
       const d = new Date(`${year}-${month}-${day}`)
-      return d instanceof Date && !isNaN(d) && String(d.getDate()).padStart(2, '0') === day
+      return d instanceof Date && !isNaN(d.getTime()) && String(d.getDate()).padStart(2, '0') === day
     })
     .test('is-future', 'Date cannot be in the past.', function (value) {
       if (!value) return true

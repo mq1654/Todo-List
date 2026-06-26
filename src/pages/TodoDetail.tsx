@@ -1,15 +1,16 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useStoreState } from 'easy-peasy'
+import { useStoreState } from '../store'
 import { ArrowLeft, Calendar, Tag, CheckCircle2, Circle, Clock, AlertCircle } from 'lucide-react'
+import type { Todo } from '../store/types'
 
-function getPriorityColor(priority) {
+function getPriorityColor(priority: Todo['priority']) {
   if (priority === 'High') return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50'
   if (priority === 'Medium') return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50'
   return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
 }
 
 export default function TodoDetail() {
-  const { id } = useParams()
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   
   const todo = useStoreState((state) => 
