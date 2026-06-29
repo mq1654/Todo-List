@@ -1,7 +1,9 @@
-import { useStoreState } from '../store'; 
-import type { TodoModel } from '../store/types'; 
-import { ClipboardList } from 'lucide-react'
-import TodoItem from './TodoItem'
+import { useState, useCallback, useMemo } from 'react';
+import { useStoreState, useStoreActions } from '../store';
+import type { TodoModel } from '../store/types';
+import { ClipboardList, Trash2, X } from 'lucide-react';
+import { Droppable, Draggable } from '@hello-pangea/dnd';
+import TodoItem from './TodoItem';
 
 interface EmptyStateProps {
   filter: TodoModel['filter'];  
@@ -31,19 +33,148 @@ function TodoList() {
   const filteredItems = useStoreState((state) => state.todos.filteredItems)
   const filter = useStoreState((state) => state.todos.filter)
   const searchTerm = useStoreState((state) => state.todos.searchTerm)
+  const deleteMultiple = useStoreActions((actions) => actions.todos.deleteMultiple)
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const isAllSelected = useMemo(() => {
+    if (filteredItems.length === 0) return false;
+    return filteredItems.every(item => selectedIds.has(item.id));
+  }, [filteredItems, selectedIds]);
+
+  const handleSelectClick = useCallback(() => {
+    setIsSelectionMode(true);
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedIds(new Set(filteredItems.map(i => i.id)));
+  }, [filteredItems]);
+
+  const handleCancelSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    setIsSelectionMode(false);
+  }, []);
+
+  const handleLongPress = useCallback((id: string) => {
+    setIsSelectionMode(true);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    if (window.confirm(`Are you sure you want to delete ${selectedIds.size} selected item(s)?`)) {
+      deleteMultiple(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      setIsSelectionMode(false);
+    }
+  }, [selectedIds, deleteMultiple]);
+
+  const handleDeleteAll = useCallback(() => {
+    if (filteredItems.length === 0) return;
+    if (window.confirm(`Are you sure you want to delete ALL ${filteredItems.length} item(s) in this view?`)) {
+      deleteMultiple(filteredItems.map(item => item.id));
+      setSelectedIds(new Set());
+      setIsSelectionMode(false);
+    }
+  }, [filteredItems, deleteMultiple]);
 
   if (filteredItems.length === 0) {
     return <EmptyState filter={filter} searchTerm={searchTerm} />
   }
 
   return (
-    <ul className="space-y-2.5">
-      {filteredItems.map((item) => (
-        <li key={item.id}>
-          <TodoItem item={item} />
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-3">
+      <div className="flex items-center justify-end gap-3 px-1 mb-1">
+        {isSelectionMode && (
+          <button 
+            onClick={handleCancelSelection} 
+            className="p-1 bg-slate-200 text-slate-600 hover:bg-slate-300 rounded-full dark:bg-slate-700 dark:text-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500"
+          >
+            <X size={14} />
+          </button>
+        )}
+        
+        {isSelectionMode && selectedIds.size > 0 && !isAllSelected && (
+          <button
+            onClick={handleDeleteSelected}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors dark:text-red-400 dark:bg-red-900/30 dark:border-red-900/50 dark:hover:bg-red-900/50 focus:outline-none focus:ring-2 focus:ring-red-500"
+          >
+            <Trash2 size={14} />
+            Delete Selected ({selectedIds.size})
+          </button>
+        )}
+
+        {isSelectionMode && isAllSelected && (
+          <button
+            onClick={handleDeleteAll}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 border border-transparent hover:bg-slate-200 hover:text-red-600 rounded-lg transition-colors dark:text-slate-400 dark:bg-slate-800/80 dark:border-slate-700/50 dark:hover:bg-slate-800 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-slate-500"
+          >
+            <Trash2 size={14} />
+            Delete All
+          </button>
+        )}
+
+        {!isSelectionMode ? (
+          <button
+            onClick={handleSelectClick}
+            className="text-sm font-bold text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors select-none focus:outline-none"
+          >
+            Select
+          </button>
+        ) : (
+          <button
+            onClick={isAllSelected ? handleCancelSelection : handleSelectAll}
+            className="text-sm font-bold text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors select-none focus:outline-none"
+          >
+            Select All
+          </button>
+        )}
+      </div>
+
+      <Droppable droppableId="todo-list">
+      {(provided) => (
+        <ul 
+          className="space-y-2.5"
+          {...provided.droppableProps}
+          ref={provided.innerRef}
+        >
+          {filteredItems.map((item, index) => (
+            <Draggable key={item.id} draggableId={item.id} index={index}>
+              {(provided) => (
+                <li
+                  ref={provided.innerRef}
+                  {...provided.draggableProps}
+                  {...provided.dragHandleProps}
+                >
+                  <TodoItem 
+                    item={item} 
+                    isSelected={selectedIds.has(item.id)}
+                    isSelectionMode={isSelectionMode}
+                    onToggleSelect={handleToggleSelect}
+                    onLongPress={handleLongPress}
+                  />
+                </li>
+              )}
+            </Draggable>
+          ))}
+          {provided.placeholder}
+        </ul>
+      )}
+    </Droppable>
+    </div>
   )
 }
 

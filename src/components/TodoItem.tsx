@@ -1,38 +1,39 @@
-import React, { useState, memo } from 'react';
-import { useStoreActions } from '../store'; 
+import { useState, useRef, useCallback, memo } from 'react';
+import { useStoreActions } from '../store';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Pencil, Check, Circle, Calendar, Tag } from 'lucide-react';
 import TodoInput from './TodoInput';
 import type { Todo, TodoPayload } from '../store/types';
+import { getPriorityColor, isOverdue } from '../utils/todoHelpers';
 
 interface TodoItemProps {
   item: Todo;
+  isSelected?: boolean;
+  isSelectionMode?: boolean;
+  onToggleSelect?: (id: string) => void;
+  onLongPress?: (id: string) => void;
 }
 
-function getPriorityColor(priority: Todo['priority']) {
-  if (priority === 'High') return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50'
-  if (priority === 'Medium') return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50'
-  return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
-}
-
-function isOverdue(dueDate: string | null, completed: boolean) {
-  if (completed || !dueDate) return false
-  const todayStr = new Date().toISOString().split('T')[0]
-  return dueDate < todayStr
-}
-
-const TodoItem: React.FC<TodoItemProps> = ({ item }) => {
+const TodoItem = memo(({ 
+  item, 
+  isSelected = false, 
+  isSelectionMode = false, 
+  onToggleSelect,
+  onLongPress,
+}: TodoItemProps) => {
   const [isEditing, setIsEditing] = useState(false)
   const navigate = useNavigate()
+  const timerRef = useRef<number | null>(null)
+  const longPressActivated = useRef(false)
 
-  const remove = useStoreActions((actions) => actions.todos.remove)
-  const update = useStoreActions((actions) => actions.todos.update)
-  const toggleStatus = useStoreActions((actions) => actions.todos.toggleStatus)
+  const remove = useStoreActions((a) => a.todos.remove)
+  const update = useStoreActions((a) => a.todos.update)
+  const toggleStatus = useStoreActions((a) => a.todos.toggleStatus)
 
-  function handleUpdate(values: TodoPayload) {
+  const handleUpdate = useCallback((values: TodoPayload) => {
     update({ id: item.id, ...values })
     setIsEditing(false)
-  }
+  }, [item.id, update])
 
   if (isEditing) {
     return (
@@ -54,16 +55,49 @@ const TodoItem: React.FC<TodoItemProps> = ({ item }) => {
 
   const overdue = isOverdue(item.dueDate, item.completed)
 
+  const startLongPress = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button, input')) return
+    longPressActivated.current = false
+    timerRef.current = window.setTimeout(() => {
+      longPressActivated.current = true
+      onLongPress?.(item.id)
+    }, 700)
+  }, [item.id, onLongPress])
+
+  const cancelLongPress = useCallback(() => {
+    if (timerRef.current === null) return
+    window.clearTimeout(timerRef.current)
+    timerRef.current = null
+  }, [])
+
+  const handleContentClick = useCallback((e: React.MouseEvent) => {
+    if (longPressActivated.current) return
+    if (isSelectionMode) {
+      onToggleSelect?.(item.id)
+      return
+    }
+    navigate(`/todoDetail/${item.id}`)
+  }, [isSelectionMode, item.id, navigate, onToggleSelect])
+
   return (
     <div
-      className={`group flex items-start gap-4 bg-white border rounded-xl px-4 py-3.5 shadow-sm transition-colors dark:bg-slate-800 ${
+      onPointerDown={startLongPress}
+      onPointerUp={cancelLongPress}
+      onPointerLeave={cancelLongPress}
+      onPointerCancel={cancelLongPress}
+      className={`group flex items-start gap-3 sm:gap-4 bg-white border rounded-xl px-3 sm:px-4 py-3.5 shadow-sm transition-colors dark:bg-slate-800 ${
         item.completed ? 'border-slate-100 opacity-60 dark:border-slate-800/50' : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
-      }`}
+      } ${isSelected ? 'ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20 border-transparent' : ''}`}
     >
       <button
         onClick={() => toggleStatus(item.id)}
+        disabled={isSelectionMode}
         aria-label={item.completed ? 'Mark as active' : 'Mark as completed'}
-        className="mt-0.5 shrink-0 text-slate-400 hover:text-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-700 rounded-full dark:hover:text-slate-200"
+        className={`mt-0.5 shrink-0 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-700 rounded-full ${
+          isSelectionMode 
+            ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-50'
+            : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+        }`}
       >
         {item.completed ? (
           <Check size={18} className="text-slate-800 dark:text-slate-200" />
@@ -74,7 +108,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ item }) => {
 
       <div 
         className="flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
-        onClick={() => navigate(`/todoDetail/${item.id}`)}
+        onClick={handleContentClick}
       >
         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
           <span
@@ -132,8 +166,19 @@ const TodoItem: React.FC<TodoItemProps> = ({ item }) => {
           <Trash2 size={14} />
         </button>
       </div>
+
+      {isSelectionMode && (
+        <div className="flex items-center self-center pl-2 shrink-0">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect?.(item.id)}
+            className="w-5 h-5 text-blue-500 bg-slate-100 border-slate-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-slate-800 focus:ring-2 dark:bg-slate-700 dark:border-slate-600 cursor-pointer"
+          />
+        </div>
+      )}
     </div>
   )
-}
+})
 
-export default memo(TodoItem)
+export default TodoItem;

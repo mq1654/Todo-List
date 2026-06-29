@@ -22,7 +22,7 @@ const todoModel : TodoModel = {
     let result = state.items.filter((item) => {
       if (state.filter === 'active') return !item.completed
       if (state.filter === 'completed') return item.completed
-      return !item.completed
+      return true
     })
 
     if (state.categoryFilter !== 'all') {
@@ -47,15 +47,13 @@ const todoModel : TodoModel = {
 
     if (state.sortByPriority) {
       result = [...result].sort((a, b) => priorityValue[b.priority] - priorityValue[a.priority])
-    } else {
-      result = [...result].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     }
 
     return result
   }),
 
   add: action((state, payload) => {
-    state.items.push({
+    state.items.unshift({
       id: crypto.randomUUID(),
       title: payload.title.trim(),
       description: payload.description ? payload.description.trim() : '',
@@ -69,6 +67,11 @@ const todoModel : TodoModel = {
 
   remove: action((state, id) => {
     state.items = state.items.filter((item) => item.id !== id)
+  }),
+
+  deleteMultiple: action((state, ids) => {
+    const idSet = new Set(ids);
+    state.items = state.items.filter((item) => !idSet.has(item.id));
   }),
 
   update: action((state, payload) => {
@@ -130,6 +133,22 @@ const todoModel : TodoModel = {
     })
     if (state.categoryFilter === from) {
       state.categoryFilter = 'all'
+    }
+  }),
+
+  reorderTodo: action((state, { sourceId, destinationId, isMovingDown }) => {
+    state.sortByPriority = false;
+
+    const sourceIdx = state.items.findIndex(i => i.id === sourceId);
+    if (sourceIdx === -1) return;
+
+    const [sourceItem] = state.items.splice(sourceIdx, 1);
+
+    const destIdx = state.items.findIndex(i => i.id === destinationId);
+    if (destIdx !== -1) {
+      state.items.splice(isMovingDown ? destIdx + 1 : destIdx, 0, sourceItem);
+    } else {
+      state.items.unshift(sourceItem);
     }
   }),
 }

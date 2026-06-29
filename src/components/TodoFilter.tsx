@@ -1,5 +1,6 @@
 import { useStoreState, useStoreActions } from '../store'
 import { Search, SlidersHorizontal, ArrowDownAZ, AlertCircle } from 'lucide-react'
+import { Droppable } from '@hello-pangea/dnd'
 
 interface FilterOption {
   value: 'all' | 'active' | 'completed'
@@ -46,19 +47,43 @@ function TodoFilter() {
         <div className="flex items-center gap-2">
           <SlidersHorizontal size={14} className="text-slate-400 shrink-0" />
           <div className="flex gap-1.5">
-            {FILTER_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setFilter(option.value)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-slate-700 ${
-                  filter === option.value
-                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+            {FILTER_OPTIONS.map((option) => {
+              if (option.value === 'completed') {
+                return (
+                  <Droppable droppableId="filter-completed" key={option.value}>
+                    {(provided, snapshot) => (
+                      <button
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        onClick={() => setFilter(option.value)}
+                        className={`relative px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-slate-700 ${
+                          filter === option.value
+                            ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
+                        } ${snapshot.isDraggingOver ? '!bg-green-100 !text-green-800 ring-2 ring-green-500 dark:!bg-green-900 dark:!text-green-300' : ''}`}
+                      >
+                        {option.label}
+                        <span className="hidden">{provided.placeholder}</span>
+                      </button>
+                    )}
+                  </Droppable>
+                )
+              }
+              
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => setFilter(option.value)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-slate-700 ${
+                    filter === option.value
+                      ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 

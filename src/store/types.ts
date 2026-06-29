@@ -35,8 +35,10 @@ export interface TodoModel {
 
   add: Action<TodoModel, TodoPayload>;
   remove: Action<TodoModel, string>;
+  deleteMultiple: Action<TodoModel, string[]>;
   update: Action<TodoModel, TodoPayload & { id: string }>;
   toggleStatus: Action<TodoModel, string>;
+  reorderTodo: Action<TodoModel, { sourceId: string; destinationId: string; isMovingDown: boolean }>;
 
   setFilter: Action<TodoModel, 'all' | 'active' | 'completed'>;
   setSearchTerm: Action<TodoModel, string>;

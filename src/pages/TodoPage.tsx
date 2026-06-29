@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useStoreActions, useStoreState } from '../store'
 import { useNavigate } from 'react-router-dom'
 import { Settings } from 'lucide-react'
@@ -5,6 +6,7 @@ import TodoInput from '../components/TodoInput'
 import TodoFilter from '../components/TodoFilter'
 import TodoList from '../components/TodoList'
 import { useUrlSync } from '../hooks/useUrlSync'
+import { DragDropContext, DropResult } from '@hello-pangea/dnd'
 
 interface StatBadgeProps {
   count: number
@@ -23,15 +25,42 @@ function StatBadge({ count, label }: StatBadgeProps) {
 function TodoPage() {
   useUrlSync()
 
-  const add = useStoreActions((actions) => actions.todos.add)
-  const totalCount = useStoreState((state) => state.todos.totalCount)
-  const activeCount = useStoreState((state) => state.todos.activeCount)
-  const completedCount = useStoreState((state) => state.todos.completedCount)
+  const add = useStoreActions((a) => a.todos.add)
+  const toggleStatus = useStoreActions((a) => a.todos.toggleStatus)
+  const reorderTodo = useStoreActions((a) => a.todos.reorderTodo)
+  const filteredItems = useStoreState((s) => s.todos.filteredItems)
+  const totalCount = useStoreState((s) => s.todos.totalCount)
+  const activeCount = useStoreState((s) => s.todos.activeCount)
+  const completedCount = useStoreState((s) => s.todos.completedCount)
 
   const navigate = useNavigate()
 
+  const onDragEnd = useCallback((result: DropResult) => {
+    const { source, destination } = result
+    if (!destination) return
+
+    if (destination.droppableId === 'filter-completed') {
+      const item = filteredItems[source.index]
+      if (item && !item.completed) toggleStatus(item.id)
+      return
+    }
+
+    if (
+      destination.droppableId === 'todo-list' &&
+      source.droppableId === 'todo-list' &&
+      source.index !== destination.index
+    ) {
+      reorderTodo({
+        sourceId: filteredItems[source.index].id,
+        destinationId: filteredItems[destination.index].id,
+        isMovingDown: destination.index > source.index,
+      })
+    }
+  }, [filteredItems, toggleStatus, reorderTodo])
+
   return (
     <div className="min-h-screen bg-slate-50 transition-colors duration-300 dark:bg-slate-900">
+      <DragDropContext onDragEnd={onDragEnd}>
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 dark:bg-slate-800 dark:border-slate-700">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -68,6 +97,7 @@ function TodoPage() {
           </div>
         </div>
       </main>
+      </DragDropContext>
     </div>
   )
 }
