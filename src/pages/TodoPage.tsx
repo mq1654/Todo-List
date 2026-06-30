@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useStoreActions, useStoreState } from '../store'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Settings } from 'lucide-react'
 import TodoInput from '../components/TodoInput'
 import TodoFilter from '../components/TodoFilter'
@@ -34,6 +34,7 @@ function TodoPage() {
   const completedCount = useStoreState((s) => s.todos.completedCount)
 
   const navigate = useNavigate()
+  const location = useLocation()
 
   const onDragEnd = useCallback((result: DropResult) => {
     const { source, destination } = result
@@ -62,17 +63,29 @@ function TodoPage() {
     <div className="min-h-screen bg-slate-50 transition-colors duration-300 dark:bg-slate-900">
       <DragDropContext onDragEnd={onDragEnd}>
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 dark:bg-slate-800 dark:border-slate-700">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 bg-slate-900 rounded-md dark:bg-slate-100" />
-            <span className="text-sm font-bold text-slate-900 tracking-tight dark:text-white">Todo List</span>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between relative">
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 bg-slate-900 rounded-md dark:bg-slate-100" />
+              <span className="text-sm font-bold text-slate-900 tracking-tight dark:text-white">Todo List</span>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-6">
+              <button
+                onClick={() => navigate('/table' + location.search)}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white uppercase tracking-wider transition-colors"
+              >
+                Table View
+              </button>
+            </div>
           </div>
+
           <div className="flex items-center gap-6">
             {totalCount > 0 && (
-              <div className="hidden sm:flex items-center gap-6">
+              <div className="hidden md:flex items-center gap-6">
                 <StatBadge count={totalCount} label="Total" />
                 <StatBadge count={activeCount} label="Active" />
-                <StatBadge count={completedCount} label="Done" />
+                <StatBadge count={completedCount} label="Completed" />
               </div>
             )}
             <button 
