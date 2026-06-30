@@ -2,10 +2,9 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useStoreState, useStoreActions } from '../store'
 import { Pagination, Select, Tooltip, Modal } from 'antd'
-import { ArrowLeft, Search, Trash2, Pencil, CheckCircle2, Circle, X, Download } from 'lucide-react'
+import { ArrowLeft, Search, Trash2, CheckCircle2, Circle, X, Download } from 'lucide-react'
 import type { Todo, TodoPayload } from '../store/types'
 import { getPriorityColor, isOverdue } from '../utils/todoHelpers'
-import TodoInput from '../components/TodoInput'
 
 const PAGE_SIZE = 10
 
@@ -144,7 +143,6 @@ export default function TableViewPage() {
   const [selectedIds,    setSelectedIds]    = useState<Set<string>>(new Set())
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
-  const [editTargetId,   setEditTargetId]   = useState<string | null>(null)
 
   const categoryOptions = useMemo(() => [
     { value: 'all', label: 'All' },
@@ -459,14 +457,6 @@ export default function TableViewPage() {
 
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <Tooltip title="Edit">
-                              <button
-                                onClick={() => setEditTargetId(item.id)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                            </Tooltip>
                             <Tooltip title="Delete">
                               <button
                                 onClick={() => handleDelete(item.id)}
@@ -508,14 +498,14 @@ export default function TableViewPage() {
                   if (type === 'prev') {
                     if (currentPage === 1) return <span className="hidden" />
                     return (
-                      <button className="px-2 py-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer focus:outline-none">
+                      <button className="px-2 py-1 text-xs !text-slate-500 dark:!text-slate-400 hover:!text-slate-900 dark:hover:!text-white transition-colors cursor-pointer focus:outline-none">
                         ‹ Previous
                       </button>
                     )
                   }
                   if (type === 'next') {
                     return (
-                      <button className="px-2 py-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer focus:outline-none">
+                      <button className="px-2 py-1 text-xs !text-slate-500 dark:!text-slate-400 hover:!text-slate-900 dark:hover:!text-white transition-colors cursor-pointer focus:outline-none">
                         Next ›
                       </button>
                     )
@@ -576,38 +566,6 @@ export default function TableViewPage() {
           task{selectedIds.size !== 1 ? 's' : ''}? This action cannot be undone.
         </p>
       </Modal>
-
-      {(() => {
-        const editItem = items.find(i => i.id === editTargetId)
-        return (
-          <Modal
-            open={!!editTargetId}
-            onCancel={() => setEditTargetId(null)}
-            footer={null}
-            title="Edit Task"
-            destroyOnClose
-          >
-            {editItem && (
-              <div className="mt-4">
-                <TodoInput
-                  initialValues={{
-                    title: editItem.title,
-                    description: editItem.description,
-                    category: editItem.category,
-                    priority: editItem.priority,
-                    dueDate: editItem.dueDate,
-                  }}
-                  onSubmit={(values: TodoPayload) => {
-                    update({ id: editItem.id, ...values })
-                    setEditTargetId(null)
-                  }}
-                  onCancel={() => setEditTargetId(null)}
-                />
-              </div>
-            )}
-          </Modal>
-        )
-      })()}
     </div>
   )
 }

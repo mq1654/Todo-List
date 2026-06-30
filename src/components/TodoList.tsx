@@ -188,11 +188,9 @@ function TodoList() {
       {remaining > 0 && (
         <button
           onClick={() => setVisibleCount(v => v + PAGE_STEP)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 rounded-xl transition-all group focus:outline-none"
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all group focus:outline-none cursor-pointer"
         >
-          <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform" />
-          Load {Math.min(remaining, PAGE_STEP)} more
-          <span className="text-slate-400 dark:text-slate-600">({remaining} remaining)</span>
+          View more
         </button>
       )}
     </div>
