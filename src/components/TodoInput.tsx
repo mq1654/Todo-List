@@ -1,6 +1,7 @@
 import { useFormik } from 'formik'
+import { useMemo } from 'react'
 import { useStoreState } from '../store';
-import { todoSchema } from '../schemas/todoSchema';
+import { createTodoSchema } from '../schemas/todoSchema';
 import type { Todo, TodoPayload } from '../store/types';
 
 const EMPTY_VALUES: Partial<Todo> = {
@@ -49,6 +50,7 @@ interface TodoInputProps {
 function TodoInput({ onSubmit, initialValues = EMPTY_VALUES, onCancel }: TodoInputProps) {
   const isEditMode = initialValues !== EMPTY_VALUES && initialValues.title !== ''
   const categories = useStoreState(state => state.settings?.categories || ['Work', 'Personal', 'Learning'])
+  const schema = useMemo(() => createTodoSchema(categories), [categories])
 
   let initialFormattedDate = ''
   if (initialValues.dueDate) {
@@ -63,7 +65,7 @@ function TodoInput({ onSubmit, initialValues = EMPTY_VALUES, onCancel }: TodoInp
 
   const formik = useFormik({
     initialValues: formikInitialValues,
-    validationSchema: todoSchema,
+    validationSchema: schema,
     enableReinitialize: true,
     onSubmit: (values, { resetForm }) => {
       let isoDate = ''
