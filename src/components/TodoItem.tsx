@@ -35,26 +35,6 @@ const TodoItem = memo(({
     setIsEditing(false)
   }, [item.id, update])
 
-  if (isEditing) {
-    return (
-      <div className="rounded-xl border border-slate-200 overflow-hidden">
-        <TodoInput
-          initialValues={{
-            title: item.title,
-            description: item.description,
-            category: item.category,
-            priority: item.priority,
-            dueDate: item.dueDate,
-          }}
-          onSubmit={handleUpdate}
-          onCancel={() => setIsEditing(false)}
-        />
-      </div>
-    )
-  }
-
-  const overdue = isOverdue(item.dueDate, item.completed)
-
   const startLongPress = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0 || (e.target as HTMLElement).closest('button, input')) return
     longPressActivated.current = false
@@ -78,6 +58,26 @@ const TodoItem = memo(({
     }
     navigate(`/todoDetail/${item.id}`)
   }, [isSelectionMode, item.id, navigate, onToggleSelect])
+
+  if (isEditing) {
+    return (
+      <div className="rounded-xl border border-slate-200 overflow-hidden">
+        <TodoInput
+          initialValues={{
+            title: item.title,
+            description: item.description,
+            category: item.category,
+            priority: item.priority,
+            dueDate: item.dueDate,
+          }}
+          onSubmit={handleUpdate}
+          onCancel={() => setIsEditing(false)}
+        />
+      </div>
+    )
+  }
+
+  const overdue = isOverdue(item.dueDate, item.completed)
 
   return (
     <div
@@ -152,7 +152,7 @@ const TodoItem = memo(({
 
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         <button
-          onClick={() => setIsEditing(true)}
+          onClick={(e) => { e.stopPropagation(); setIsEditing(true) }}
           aria-label="Edit task"
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-700 dark:hover:text-slate-300 dark:hover:bg-slate-700"
         >
