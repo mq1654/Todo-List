@@ -1,12 +1,14 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useStoreState, useStoreActions } from '../store';
 import type { TodoModel } from '../store/types';
-import { ClipboardList, Trash2, X } from 'lucide-react';
+import { ClipboardList, Trash2, X, ChevronDown } from 'lucide-react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import TodoItem from './TodoItem';
 
+const PAGE_STEP = 5
+
 interface EmptyStateProps {
-  filter: TodoModel['filter'];  
+  filter: TodoModel['filter'];
   searchTerm: TodoModel['searchTerm'];
 }
 function EmptyState({ filter, searchTerm }: EmptyStateProps) {
@@ -37,6 +39,14 @@ function TodoList() {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_STEP);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_STEP)
+  }, [filter, searchTerm])
+
+  const visibleItems = useMemo(() => filteredItems.slice(0, visibleCount), [filteredItems, visibleCount])
+  const remaining = Math.max(0, filteredItems.length - visibleCount)
 
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -99,14 +109,14 @@ function TodoList() {
     <div className="space-y-3">
       <div className="flex items-center justify-end gap-3 px-1 mb-1">
         {isSelectionMode && (
-          <button 
-            onClick={handleCancelSelection} 
+          <button
+            onClick={handleCancelSelection}
             className="p-1 bg-slate-200 text-slate-600 hover:bg-slate-300 rounded-full dark:bg-slate-700 dark:text-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500"
           >
             <X size={14} />
           </button>
         )}
-        
+
         {isSelectionMode && selectedIds.size > 0 && !isAllSelected && (
           <button
             onClick={handleDeleteSelected}
@@ -145,35 +155,46 @@ function TodoList() {
       </div>
 
       <Droppable droppableId="todo-list">
-      {(provided) => (
-        <ul 
-          className="space-y-2.5"
-          {...provided.droppableProps}
-          ref={provided.innerRef}
+        {(provided) => (
+          <ul
+            className="space-y-2.5"
+            {...provided.droppableProps}
+            ref={provided.innerRef}
+          >
+            {visibleItems.map((item, index) => (
+              <Draggable key={item.id} draggableId={item.id} index={index}>
+                {(provided) => (
+                  <li
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                  >
+                    <TodoItem
+                      item={item}
+                      isSelected={selectedIds.has(item.id)}
+                      isSelectionMode={isSelectionMode}
+                      onToggleSelect={handleToggleSelect}
+                      onLongPress={handleLongPress}
+                    />
+                  </li>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </ul>
+        )}
+      </Droppable>
+
+      {remaining > 0 && (
+        <button
+          onClick={() => setVisibleCount(v => v + PAGE_STEP)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 rounded-xl transition-all group focus:outline-none"
         >
-          {filteredItems.map((item, index) => (
-            <Draggable key={item.id} draggableId={item.id} index={index}>
-              {(provided) => (
-                <li
-                  ref={provided.innerRef}
-                  {...provided.draggableProps}
-                  {...provided.dragHandleProps}
-                >
-                  <TodoItem 
-                    item={item} 
-                    isSelected={selectedIds.has(item.id)}
-                    isSelectionMode={isSelectionMode}
-                    onToggleSelect={handleToggleSelect}
-                    onLongPress={handleLongPress}
-                  />
-                </li>
-              )}
-            </Draggable>
-          ))}
-          {provided.placeholder}
-        </ul>
+          <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform" />
+          Load {Math.min(remaining, PAGE_STEP)} more
+          <span className="text-slate-400 dark:text-slate-600">({remaining} remaining)</span>
+        </button>
       )}
-    </Droppable>
     </div>
   )
 }

@@ -47,19 +47,21 @@ interface TodoInputProps {
   initialValues?: Partial<Todo>;
   onCancel?: () => void;
 }
-function TodoInput({ onSubmit, initialValues = EMPTY_VALUES, onCancel }: TodoInputProps) {
-  const isEditMode = initialValues !== EMPTY_VALUES && initialValues.title !== ''
+function TodoInput({ onSubmit, initialValues, onCancel }: TodoInputProps) {
   const categories = useStoreState(state => state.settings?.categories || ['Work', 'Personal', 'Learning'])
+  const resolvedInitialValues = initialValues ?? EMPTY_VALUES
+  const isEditMode = resolvedInitialValues.title !== ''
   const schema = useMemo(() => createTodoSchema(categories), [categories])
 
   let initialFormattedDate = ''
-  if (initialValues.dueDate) {
-    const [year, month, day] = initialValues.dueDate.split('-')
+  if (resolvedInitialValues.dueDate) {
+    const [year, month, day] = resolvedInitialValues.dueDate.split('-')
     initialFormattedDate = `${day}-${month}-${year}`
   }
 
   const formikInitialValues = {
-    ...initialValues,
+    ...resolvedInitialValues,
+    category: resolvedInitialValues.category || categories[0] || '',
     dueDate: initialFormattedDate,
   }
 
@@ -157,7 +159,7 @@ function TodoInput({ onSubmit, initialValues = EMPTY_VALUES, onCancel }: TodoInp
             value={formik.values.category}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            className={getInputClass('category')}
+            className={`${getInputClass('category')} appearance-none pr-8`}
           >
             {categories.map((cat: string) => <option key={cat} value={cat}>{cat}</option>)}
           </select>

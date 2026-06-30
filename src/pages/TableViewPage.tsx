@@ -503,27 +503,29 @@ export default function TableViewPage() {
                 size="small"
                 itemRender={(page, type, originalElement) => {
                   if (type === 'prev') {
+                    if (currentPage === 1) return <span className="hidden" />
                     return (
-                      <button className="px-2 py-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+                      <button className="px-2 py-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer focus:outline-none">
                         ‹ Previous
                       </button>
                     )
                   }
                   if (type === 'next') {
                     return (
-                      <button className="px-2 py-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+                      <button className="px-2 py-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer focus:outline-none">
                         Next ›
                       </button>
                     )
                   }
                   if (type === 'page') {
+                    const isActive = page === currentPage
                     return (
                       <button
                         className={[
-                          'w-7 h-7 flex items-center justify-center rounded-md text-xs font-medium transition-colors',
-                          page === currentPage
-                            ? 'bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900'
-                            : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700',
+                          'w-7 h-7 flex items-center justify-center text-xs transition-all cursor-pointer focus:outline-none',
+                          isActive
+                            ? 'font-bold text-slate-900 dark:text-white underline underline-offset-4 decoration-2'
+                            : 'font-medium text-slate-500 dark:text-slate-400 hover:font-semibold hover:text-slate-800 dark:hover:text-slate-200',
                         ].join(' ')}
                       >
                         {page}

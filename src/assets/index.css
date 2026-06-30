@@ -21,3 +21,22 @@
     @apply min-h-screen;
   }
 }
+
+.ant-pagination-item,
+.ant-pagination-item a,
+.ant-pagination-prev,
+.ant-pagination-next,
+.ant-pagination-jump-prev,
+.ant-pagination-jump-next {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.ant-pagination-item:focus-visible,
+.ant-pagination-prev:focus-visible,
+.ant-pagination-next:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
