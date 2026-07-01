@@ -3,8 +3,8 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useStoreState, useStoreActions } from '../store'
 import { Pagination, Select, Tooltip, Modal } from 'antd'
 import { ArrowLeft, Search, Trash2, CheckCircle2, Circle, X, Download, AlertCircle } from 'lucide-react'
-import type { Todo, TodoPayload } from '../store/types'
-import { getPriorityColor, isOverdue } from '../utils/todoHelpers'
+import type { Todo } from '../store/types'
+import { getPriorityColor, isOverdue, exportTodosToCSV } from '../utils/todoHelpers'
 
 const PAGE_SIZE = 10
 
@@ -292,6 +292,10 @@ export default function TableViewPage() {
                 </button>
 
                 <button
+                  onClick={() => {
+                    const selected = filteredData.filter((item) => selectedIds.has(item.id))
+                    exportTodosToCSV(selected, `todos-selected-${Date.now()}.csv`)
+                  }}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                 >
                   <Download size={13} />
@@ -308,14 +312,27 @@ export default function TableViewPage() {
               </>
             )}
 
-            {hasActiveFilters && selectedIds.size === 0 && (
-              <button
-                onClick={clearAllFilters}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400 dark:hover:text-white"
-              >
-                <X size={13} />
-                Clear all filters
-              </button>
+            {selectedIds.size === 0 && (
+              <div className="flex items-center gap-2">
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400 dark:hover:text-white"
+                  >
+                    <X size={13} />
+                    Clear all filters
+                  </button>
+                )}
+                {filteredData.length > 0 && (
+                  <button
+                    onClick={() => exportTodosToCSV(filteredData, `todos-${Date.now()}.csv`)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  >
+                    <Download size={13} />
+                    Export CSV
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
