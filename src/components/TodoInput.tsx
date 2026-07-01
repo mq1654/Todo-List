@@ -8,7 +8,6 @@ const EMPTY_VALUES: Partial<Todo> = {
   title: '',
   description: '',
   category: '',
-  priority: 'Low',
   dueDate: '',
 };
 
@@ -61,7 +60,8 @@ function TodoInput({ onSubmit, initialValues, onCancel }: TodoInputProps) {
 
   const formikInitialValues = {
     ...resolvedInitialValues,
-    category: resolvedInitialValues.category || categories[0] || '',
+    category: resolvedInitialValues.category || '',
+    priority: resolvedInitialValues.priority || '',
     dueDate: initialFormattedDate,
   }
 
@@ -152,20 +152,21 @@ function TodoInput({ onSubmit, initialValues, onCancel }: TodoInputProps) {
       </FormInput>
 
       <div className="grid grid-cols-2 gap-4">
-        <FormInput id="category" label="Category" error={formik.errors.category as string} touched={formik.touched.category as boolean}>
+        <FormInput id="category" label="Category" isRequired error={formik.errors.category as string} touched={formik.touched.category as boolean}>
           <select
             id="category"
             name="category"
             value={formik.values.category}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            className={`${getInputClass('category')} appearance-none pr-8`}
+            className={getInputClass('category')}
           >
+            <option value="" disabled hidden>Select</option>
             {categories.map((cat: string) => <option key={cat} value={cat}>{cat}</option>)}
           </select>
         </FormInput>
 
-        <FormInput id="priority" label="Priority" error={formik.errors.priority as string} touched={formik.touched.priority as boolean}>
+        <FormInput id="priority" label="Priority" isRequired error={formik.errors.priority as string} touched={formik.touched.priority as boolean}>
           <select
             id="priority"
             name="priority"
@@ -174,6 +175,7 @@ function TodoInput({ onSubmit, initialValues, onCancel }: TodoInputProps) {
             onBlur={formik.handleBlur}
             className={getInputClass('priority')}
           >
+            <option value="" disabled hidden>Select</option>
             {PRIORITIES.map(pri => <option key={pri} value={pri}>{pri}</option>)}
           </select>
         </FormInput>

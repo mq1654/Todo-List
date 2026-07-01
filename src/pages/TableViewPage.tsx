@@ -179,7 +179,7 @@ export default function TableViewPage() {
       if (titleTerm && !item.title.toLowerCase().includes(titleTerm)) return false
       if (categoryFilter !== 'all' && item.category !== categoryFilter) return false
       if (priorityFilter !== 'all' && item.priority !== priorityFilter) return false
-      if (statusFilter === 'active'    &&  item.completed) return false
+      if (statusFilter === 'active'    && (item.completed || isOverdue(item.dueDate, item.completed))) return false
       if (statusFilter === 'completed' && !item.completed) return false
       if (statusFilter === 'overdue'   && !isOverdue(item.dueDate, item.completed)) return false
       return true
@@ -556,8 +556,8 @@ export default function TableViewPage() {
         title="Delete task"
         width={380}
       >
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          Are you sure you want to delete this task? This action cannot be undone.
+        <p className="text-sm text-black dark:text-black">
+          Are you sure you want to delete this task?
         </p>
       </Modal>
 
