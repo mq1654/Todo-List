@@ -55,6 +55,11 @@ export default function TodoDetail() {
                 <CheckCircle2 size={12} />
                 Completed
               </span>
+            ) : isOverdue ? (
+              <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-red-700 bg-red-100 border border-red-200 rounded-md dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50">
+                <AlertCircle size={12} />
+                Overdue
+              </span>
             ) : (
               <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-100 border border-blue-200 rounded-md dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/50">
                 <Circle size={12} />

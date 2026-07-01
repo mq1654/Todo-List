@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useStoreState, useStoreActions } from '../store'
 import { Pagination, Select, Tooltip, Modal } from 'antd'
-import { ArrowLeft, Search, Trash2, CheckCircle2, Circle, X, Download } from 'lucide-react'
+import { ArrowLeft, Search, Trash2, CheckCircle2, Circle, X, Download, AlertCircle } from 'lucide-react'
 import type { Todo, TodoPayload } from '../store/types'
 import { getPriorityColor, isOverdue } from '../utils/todoHelpers'
 
@@ -33,13 +33,26 @@ function PriorityBadge({ priority }: { priority: Todo['priority'] }) {
   )
 }
 
-function StatusBadge({ completed }: { completed: boolean }) {
-  return completed ? (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-      <CheckCircle2 size={11} className="text-emerald-500" />
-      Completed
-    </span>
-  ) : (
+function StatusBadge({ completed, overdue }: { completed: boolean; overdue?: boolean }) {
+  if (completed) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+        <CheckCircle2 size={11} className="text-emerald-500" />
+        Completed
+      </span>
+    )
+  }
+  
+  if (overdue) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+        <AlertCircle size={11} className="text-red-500" />
+        Overdue
+      </span>
+    )
+  }
+
+  return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
       <Circle size={11} />
       Active
@@ -447,7 +460,7 @@ export default function TableViewPage() {
 
                         <td className="px-4 py-3">
                           <button onClick={() => toggleStatus(item.id)} title="Click to toggle status">
-                            <StatusBadge completed={item.completed} />
+                            <StatusBadge completed={item.completed} overdue={isOverdue(item.dueDate, item.completed)} />
                           </button>
                         </td>
 
