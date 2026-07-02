@@ -77,6 +77,12 @@ function TodoPage() {
               >
                 Table View
               </button>
+              <button
+                onClick={() => navigate('/dashboard' + location.search)}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white uppercase tracking-wider transition-colors"
+              >
+                Dashboard
+              </button>
             </div>
           </div>
 
