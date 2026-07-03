@@ -93,6 +93,11 @@ const todoModel : TodoModel = {
     const item = state.items.find((item) => item.id === id)
     if (item) {
       item.completed = !item.completed
+      if (item.completed) {
+        item.completedAt = new Date().toISOString()
+      } else {
+        delete item.completedAt
+      }
     }
   }),
 

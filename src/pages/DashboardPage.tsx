@@ -1,7 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, ClipboardList, Activity, CheckCircle2, AlertTriangle, type LucideIcon } from 'lucide-react'
-import { Pie } from '@ant-design/charts'
+import { Pie, Column } from '@ant-design/charts'
 import { useStoreState } from '../store'
 import { isOverdue } from '../utils/todoHelpers'
 
@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const navSearch = location.search
+  const [chartType, setChartType] = useState<'pie' | 'bar'>('pie')
 
   const items = useStoreState((s) => s.todos.items)
   const totalCount = useStoreState((s) => s.todos.totalCount)
@@ -108,6 +109,69 @@ export default function DashboardPage() {
     scale: { color: { range: Object.values(STATUS_COLORS) } },
   }
 
+  const completionData = useMemo(() => {
+    const data: { date: string, value: number }[] = []
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const day = today.getDay()
+    const diffToMonday = today.getDate() - day + (day === 0 ? -6 : 1)
+    const monday = new Date(today)
+    monday.setDate(diffToMonday)
+
+    for (let i = 0; i <= 6; i++) {
+      const d = new Date(monday)
+      d.setDate(d.getDate() + i)
+      const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' })
+      data.push({ date: dayStr, value: 0 })
+    }
+
+    items.forEach(item => {
+      if (item.completed) {
+        const dateStr = item.completedAt || item.updatedAt || item.createdAt
+        if (dateStr) {
+          const itemDate = new Date(dateStr)
+          itemDate.setHours(0, 0, 0, 0)
+          const diffTime = itemDate.getTime() - monday.getTime()
+          const diffDays = Math.round(diffTime / (1000 * 3600 * 24))
+
+          if (diffDays >= 0 && diffDays <= 6) {
+            data[diffDays].value += 1
+          }
+        }
+      }
+    })
+
+    return data
+  }, [items])
+
+  const barConfig = {
+    data: completionData,
+    xField: 'date',
+    yField: 'value',
+    color: '#10b981',
+    tooltip: { items: [{ field: 'value', name: 'Completed Tasks' }] },
+    width: 650,
+    height: 270,
+    paddingInner: 0.3,
+    marginRatio: 0.3,
+    scale: {
+      y: {
+        domainMax: 10,
+        tickCount: 11,
+        tickInterval: 1,
+      }
+    },
+    axis: {
+      y: {
+        gridStroke: '#94a3b8',
+        gridStrokeOpacity: 0.6,
+        gridLineDash: [8, 12],
+        gridLineWidth: 1,
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 transition-colors duration-300 dark:bg-slate-900">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 dark:bg-slate-800 dark:border-slate-700">
@@ -142,30 +206,44 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-start">
           <div className="flex flex-col gap-4">
             <div className={CARD}>
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">Task Status Overview</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">Distribution of tasks by status</p>
-              <div className="flex items-center gap-22">
-                <div className="relative flex-shrink-0">
-                  <Pie {...pieConfig} />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-2xl font-bold text-slate-900 dark:text-white">{totalCount}</span>
-                    <span className="text-xs text-slate-400 dark:text-slate-500">Total</span>
-                  </div>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">Task Status Overview</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">Distribution of tasks by status</p>
                 </div>
-                <div className="space-y-4">
-                  {Object.entries(STATUS_COLORS).map(([label, color]) => {
-                    const val = counts[label.toLowerCase()] ?? 0
-                    const pct = totalCount > 0 ? ((val / totalCount) * 100).toFixed(1) : '0.0'
-                    return (
-                      <div key={label} className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                        <span className="text-xs text-slate-600 dark:text-slate-300 w-16">{label}</span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">{val} ({pct}%)</span>
-                      </div>
-                    )
-                  })}
+                <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+                  <button onClick={() => setChartType('pie')} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'pie' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>Status</button>
+                  <button onClick={() => setChartType('bar')} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'bar' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>Completion</button>
                 </div>
               </div>
+              {chartType === 'pie' ? (
+                <div className="flex items-center gap-22">
+                  <div className="relative flex-shrink-0">
+                    <Pie {...pieConfig} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-2xl font-bold text-slate-900 dark:text-white">{totalCount}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">Total</span>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {Object.entries(STATUS_COLORS).map(([label, color]) => {
+                      const val = counts[label.toLowerCase()] ?? 0
+                      const pct = totalCount > 0 ? ((val / totalCount) * 100).toFixed(1) : '0.0'
+                      return (
+                        <div key={label} className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                          <span className="text-xs text-slate-600 dark:text-slate-300 w-16">{label}</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">{val} ({pct}%)</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-[270px] w-full mx-auto">
+                  <Column {...barConfig} />
+                </div>
+              )}
             </div>
 
             <div className={CARD}>
