@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useStoreState, useStoreActions } from '../store';
+import { useTodosFilter } from '../hooks/useTodosFilter';
 import type { TodoModel } from '../store/types';
 import { ClipboardList, Trash2, X, ChevronDown } from 'lucide-react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
@@ -8,8 +9,8 @@ import TodoItem from './TodoItem';
 const PAGE_STEP = 5
 
 interface EmptyStateProps {
-  filter: TodoModel['filter'];
-  searchTerm: TodoModel['searchTerm'];
+  filter: string;
+  searchTerm: string;
 }
 function EmptyState({ filter, searchTerm }: EmptyStateProps) {
   const isFiltered = filter !== 'all' || searchTerm.trim().length > 0;
@@ -32,9 +33,7 @@ function EmptyState({ filter, searchTerm }: EmptyStateProps) {
 }
 
 function TodoList() {
-  const filteredItems = useStoreState((state) => state.todos.filteredItems)
-  const filter = useStoreState((state) => state.todos.filter)
-  const searchTerm = useStoreState((state) => state.todos.searchTerm)
+  const { filteredIds, filter, searchTerm } = useTodosFilter()
   const deleteMultiple = useStoreActions((actions) => actions.todos.deleteMultiple)
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -45,8 +44,8 @@ function TodoList() {
     setVisibleCount(PAGE_STEP)
   }, [filter, searchTerm])
 
-  const visibleItems = useMemo(() => filteredItems.slice(0, visibleCount), [filteredItems, visibleCount])
-  const remaining = Math.max(0, filteredItems.length - visibleCount)
+  const visibleIds = useMemo(() => filteredIds.slice(0, visibleCount), [filteredIds, visibleCount])
+  const remaining = Math.max(0, filteredIds.length - visibleCount)
 
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -57,17 +56,17 @@ function TodoList() {
   }, []);
 
   const isAllSelected = useMemo(() => {
-    if (filteredItems.length === 0) return false;
-    return filteredItems.every(item => selectedIds.has(item.id));
-  }, [filteredItems, selectedIds]);
+    if (filteredIds.length === 0) return false;
+    return filteredIds.every(id => selectedIds.has(id));
+  }, [filteredIds, selectedIds]);
 
   const handleSelectClick = useCallback(() => {
     setIsSelectionMode(true);
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    setSelectedIds(new Set(filteredItems.map(i => i.id)));
-  }, [filteredItems]);
+    setSelectedIds(new Set(filteredIds));
+  }, [filteredIds]);
 
   const handleCancelSelection = useCallback(() => {
     setSelectedIds(new Set());
@@ -93,15 +92,15 @@ function TodoList() {
   }, [selectedIds, deleteMultiple]);
 
   const handleDeleteAll = useCallback(() => {
-    if (filteredItems.length === 0) return;
-    if (window.confirm(`Are you sure you want to delete ALL ${filteredItems.length} item(s) in this view?`)) {
-      deleteMultiple(filteredItems.map(item => item.id));
+    if (filteredIds.length === 0) return;
+    if (window.confirm(`Are you sure you want to delete ALL ${filteredIds.length} item(s) in this view?`)) {
+      deleteMultiple(filteredIds);
       setSelectedIds(new Set());
       setIsSelectionMode(false);
     }
-  }, [filteredItems, deleteMultiple]);
+  }, [filteredIds, deleteMultiple]);
 
-  if (filteredItems.length === 0) {
+  if (filteredIds.length === 0) {
     return <EmptyState filter={filter} searchTerm={searchTerm} />
   }
 
@@ -161,8 +160,8 @@ function TodoList() {
             {...provided.droppableProps}
             ref={provided.innerRef}
           >
-            {visibleItems.map((item, index) => (
-              <Draggable key={item.id} draggableId={item.id} index={index}>
+            {visibleIds.map((id, index) => (
+              <Draggable key={id} draggableId={id} index={index}>
                 {(provided) => (
                   <li
                     ref={provided.innerRef}
@@ -170,8 +169,8 @@ function TodoList() {
                     {...provided.dragHandleProps}
                   >
                     <TodoItem
-                      item={item}
-                      isSelected={selectedIds.has(item.id)}
+                      id={id}
+                      isSelected={selectedIds.has(id)}
                       isSelectionMode={isSelectionMode}
                       onToggleSelect={handleToggleSelect}
                       onLongPress={handleLongPress}

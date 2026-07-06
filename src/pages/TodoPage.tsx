@@ -1,12 +1,13 @@
 import { useCallback } from 'react'
-import { useStoreActions, useStoreState } from '../store'
+import { useStoreActions, useStoreState, useStore } from '../store'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Settings } from 'lucide-react'
 import TodoInput from '../components/TodoInput'
 import TodoFilter from '../components/TodoFilter'
 import TodoList from '../components/TodoList'
-import { useUrlSync } from '../hooks/useUrlSync'
+import { useTodosFilter } from '../hooks/useTodosFilter'
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
+import { keepParams, TABLE_KEYS } from '../utils/urlHelpers'
 
 interface StatBadgeProps {
   count: number
@@ -23,12 +24,12 @@ function StatBadge({ count, label }: StatBadgeProps) {
 }
 
 function TodoPage() {
-  useUrlSync()
+  const { filteredIds } = useTodosFilter()
 
   const add = useStoreActions((a) => a.todos.add)
   const toggleStatus = useStoreActions((a) => a.todos.toggleStatus)
   const reorderTodo = useStoreActions((a) => a.todos.reorderTodo)
-  const filteredItems = useStoreState((s) => s.todos.filteredItems)
+  const store = useStore()
   const totalCount = useStoreState((s) => s.todos.totalCount)
   const activeCount = useStoreState((s) => s.todos.activeCount)
   const completedCount = useStoreState((s) => s.todos.completedCount)
@@ -37,12 +38,11 @@ function TodoPage() {
   const location = useLocation()
 
   const onDragEnd = useCallback((result: DropResult) => {
-    const { source, destination } = result
+    const { source, destination, draggableId } = result
     if (!destination) return
 
     if (destination.droppableId === 'filter-completed') {
-      const item = filteredItems[source.index]
-      if (item && !item.completed) toggleStatus(item.id)
+      toggleStatus(draggableId)
       return
     }
 
@@ -51,13 +51,14 @@ function TodoPage() {
       source.droppableId === 'todo-list' &&
       source.index !== destination.index
     ) {
+      const destinationId = filteredIds[destination.index]
       reorderTodo({
-        sourceId: filteredItems[source.index].id,
-        destinationId: filteredItems[destination.index].id,
+        sourceId: draggableId,
+        destinationId,
         isMovingDown: destination.index > source.index,
       })
     }
-  }, [filteredItems, toggleStatus, reorderTodo])
+  }, [toggleStatus, reorderTodo, filteredIds])
 
   return (
     <div className="min-h-screen bg-slate-50 transition-colors duration-300 dark:bg-slate-900">
@@ -72,13 +73,13 @@ function TodoPage() {
 
             <div className="hidden sm:flex items-center gap-6">
               <button
-                onClick={() => navigate('/table' + location.search)}
+                onClick={() => navigate('/table' + keepParams(location.search, TABLE_KEYS))}
                 className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white uppercase tracking-wider transition-colors"
               >
                 Table View
               </button>
               <button
-                onClick={() => navigate('/dashboard' + location.search)}
+                onClick={() => navigate('/dashboard' + keepParams(location.search, []))}
                 className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white uppercase tracking-wider transition-colors"
               >
                 Dashboard

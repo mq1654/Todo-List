@@ -4,6 +4,7 @@ import { ArrowLeft, ClipboardList, Activity, CheckCircle2, AlertTriangle, type L
 import { Pie, Column } from '@ant-design/charts'
 import { useStoreState } from '../store'
 import { isOverdue } from '../utils/todoHelpers'
+import { keepParams, TABLE_KEYS, TODO_KEYS } from '../utils/urlHelpers'
 
 interface StatCard { key: string; label: string; icon: LucideIcon; color: string; bg: string }
 
@@ -51,57 +52,53 @@ const PIE_BASE = {
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
-const todayStr = () => new Date().toISOString().split('T')[0]
-
-export default function DashboardPage() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const navSearch = location.search
-  const [chartType, setChartType] = useState<'pie' | 'bar'>('pie')
-
-  const items = useStoreState((s) => s.todos.items)
+function DashboardStats() {
   const totalCount = useStoreState((s) => s.todos.totalCount)
   const activeCount = useStoreState((s) => s.todos.activeCount)
   const completedCount = useStoreState((s) => s.todos.completedCount)
-
-  const overdueCount = useMemo(
-    () => items.filter((i) => isOverdue(i.dueDate, i.completed)).length,
-    [items]
-  )
+  const overdueCount = useStoreState((s) => s.todos.overdueCount)
 
   const counts: Record<string, number> = {
     total: totalCount, active: activeCount, completed: completedCount, overdue: overdueCount,
   }
 
-  const priorityCounts = useMemo(
-    () => Object.fromEntries(PRIORITY_BARS.map(({ key }) => [key, items.filter((i) => i.priority === key).length])),
-    [items]
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {STAT_CARDS.map(({ key, label, icon: Icon, color, bg }) => (
+        <div key={key} className={`${CARD} flex items-start justify-between`}>
+          <div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{label}</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-white tabular-nums">{counts[key]}</p>
+          </div>
+          <div className={`p-2.5 rounded-xl ${bg}`}>
+            <Icon size={20} className={color} />
+          </div>
+        </div>
+      ))}
+    </div>
   )
+}
 
-  const donutData = useMemo(() => [
-    { type: 'Active', value: activeCount },
-    { type: 'Completed', value: completedCount },
-    { type: 'Overdue', value: overdueCount },
-  ].filter((d) => d.value > 0), [activeCount, completedCount, overdueCount])
+function DashboardCharts() {
+  const [chartType, setChartType] = useState<'pie' | 'bar'>('pie')
+  const items = useStoreState((s) => s.todos.items)
+  const totalCount = useStoreState((s) => s.todos.totalCount)
+  const activeCount = useStoreState((s) => s.todos.activeCount)
+  const completedCount = useStoreState((s) => s.todos.completedCount)
+  const overdueCount = useStoreState((s) => s.todos.overdueCount)
 
-  const recentTasks = useMemo(
-    () => [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 3),
-    [items]
-  )
+  const counts: Record<string, number> = {
+    active: activeCount, completed: completedCount, overdue: overdueCount,
+  }
 
-  const dueSoonTasks = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayMs = today.getTime()
-    return items
-      .filter((i) => !i.completed && i.dueDate && i.dueDate >= todayStr())
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-      .slice(0, 3)
-      .map((i) => ({
-        ...i,
-        daysLeft: Math.ceil((new Date(i.dueDate).getTime() - todayMs) / 86400000),
-      }))
-  }, [items])
+  const donutData = useMemo(() => {
+    const data = [
+      { type: 'Active', value: activeCount },
+      { type: 'Completed', value: completedCount },
+      { type: 'Overdue', value: overdueCount },
+    ];
+    return data.filter((d) => d.value > 0);
+  }, [activeCount, completedCount, overdueCount]);
 
   const pieConfig = {
     ...PIE_BASE,
@@ -173,11 +170,170 @@ export default function DashboardPage() {
   }
 
   return (
+    <div className={CARD}>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-sm font-semibold text-slate-900 dark:text-white">Task Status Overview</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">Distribution of tasks by status</p>
+        </div>
+        <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+          <button onClick={() => setChartType('pie')} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'pie' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>Status</button>
+          <button onClick={() => setChartType('bar')} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'bar' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>Completion</button>
+        </div>
+      </div>
+      {chartType === 'pie' ? (
+        <div className="flex items-center gap-22">
+          <div className="relative flex-shrink-0">
+            <Pie {...pieConfig} />
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-2xl font-bold text-slate-900 dark:text-white">{totalCount}</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">Total</span>
+            </div>
+          </div>
+          <div className="space-y-4">
+            {Object.entries(STATUS_COLORS).map(([label, color]) => {
+              const val = counts[label.toLowerCase()] ?? 0
+              const pct = totalCount > 0 ? ((val / totalCount) * 100).toFixed(1) : '0.0'
+              return (
+                <div key={label} className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                  <span className="text-xs text-slate-600 dark:text-slate-300 w-16">{label}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{val} ({pct}%)</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-center h-[270px] w-full mx-auto">
+          <Column {...barConfig} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RecentTasksCard({ navSearch }: { navSearch: string }) {
+  const navigate = useNavigate()
+  const recentTasks = useStoreState((s) => s.todos.recentTasks)
+
+  return (
+    <div className={CARD}>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm font-semibold text-slate-900 dark:text-white">Recent Tasks</p>
+        <button onClick={() => navigate('/table' + keepParams(navSearch, TABLE_KEYS))} className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors">
+          View all
+        </button>
+      </div>
+      {recentTasks.length === 0 ? (
+        <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">No tasks yet</p>
+      ) : (
+        <div className="divide-y divide-slate-100 dark:divide-slate-700">
+          {recentTasks.map((task) => {
+            const status = task.completed ? 'Completed' : isOverdue(task.dueDate, task.completed) ? 'Overdue' : 'Active'
+            return (
+              <div key={task.id} className="flex items-center gap-3 py-3">
+                <div className={CIRCLE} />
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <p className={`text-sm font-medium truncate ${task.completed ? 'line-through text-slate-400' : 'text-slate-800 dark:text-white'}`}>{task.title}</p>
+                  {task.category && <span className={CAT_BADGE}>{task.category}</span>}
+                </div>
+                <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium flex-shrink-0 ${TASK_STATUS_CLS[status]}`}>{status}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0 w-24 text-right">{fmtDate(task.createdAt)}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PriorityCard() {
+  const items = useStoreState((s) => s.todos.items)
+  const totalCount = useStoreState((s) => s.todos.totalCount)
+  const priorityCounts = useMemo(
+    () => Object.fromEntries(PRIORITY_BARS.map(({ key }) => [key, items.filter((i) => i.priority === key).length])),
+    [items]
+  )
+
+  return (
+    <div className={`${CARD} pb-12`}>
+      <p className="text-sm font-semibold text-slate-900 dark:text-white">Tasks by Priority</p>
+      <p className="text-xs text-slate-400 dark:text-slate-500 mb-8.5">Breakdown of tasks by priority level</p>
+      <div className="space-y-8.5">
+        {PRIORITY_BARS.map(({ key, color }) => {
+          const count = priorityCounts[key] ?? 0
+          const pct = totalCount > 0 ? (count / totalCount) * 100 : 0
+          return (
+            <div key={key}>
+              <div className="flex justify-between mb-2">
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{key}</span>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">{count}</span>
+              </div>
+              <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function DueSoonCard({ navSearch }: { navSearch: string }) {
+  const navigate = useNavigate()
+  const dueSoonTasks = useStoreState((s) => s.todos.dueSoonTasks)
+
+  return (
+    <div className={CARD}>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm font-semibold text-slate-900 dark:text-white">Tasks Due Soon</p>
+        <button onClick={() => navigate('/table' + keepParams(navSearch, TABLE_KEYS))} className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors">
+          View all
+        </button>
+      </div>
+      {dueSoonTasks.length === 0 ? (
+        <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">No upcoming deadlines</p>
+      ) : (
+        <div className="divide-y divide-slate-100 dark:divide-slate-700">
+          {dueSoonTasks.map(({ id, title, category, dueDate, daysLeft }) => {
+            const urgent = daysLeft <= 3
+            const cls = urgent ? 'text-red-500' : 'text-amber-500'
+            const badgeCls = urgent ? 'bg-red-50 text-red-500 dark:bg-red-900/20' : 'bg-amber-50 text-amber-500 dark:bg-amber-900/20'
+            const dayLabel = daysLeft === 0 ? 'Today' : `${daysLeft}d left`
+            return (
+              <div key={id} className="flex items-center gap-3 py-3">
+                <div className={CIRCLE} />
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800 dark:text-white truncate">{title}</p>
+                  {category && <span className={CAT_BADGE}>{category}</span>}
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${badgeCls}`}>{dayLabel}</span>
+                  <span className={`text-xs font-medium ${cls}`}>{fmtDate(dueDate)}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function DashboardPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const navSearch = location.search
+
+  return (
     <div className="min-h-screen bg-slate-50 transition-colors duration-300 dark:bg-slate-900">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 dark:bg-slate-800 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
           <button
-            onClick={() => navigate('/' + navSearch)}
+            onClick={() => navigate('/' + keepParams(navSearch, TODO_KEYS))}
             className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:text-white"
           >
             <ArrowLeft size={16} />
@@ -189,149 +345,17 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {STAT_CARDS.map(({ key, label, icon: Icon, color, bg }) => (
-            <div key={key} className={`${CARD} flex items-start justify-between`}>
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{label}</p>
-                <p className="text-3xl font-bold text-slate-900 dark:text-white tabular-nums">{counts[key]}</p>
-              </div>
-              <div className={`p-2.5 rounded-xl ${bg}`}>
-                <Icon size={20} className={color} />
-              </div>
-            </div>
-          ))}
-        </div>
-
+        <DashboardStats />
+        
         <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-start">
           <div className="flex flex-col gap-4">
-            <div className={CARD}>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">Task Status Overview</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">Distribution of tasks by status</p>
-                </div>
-                <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
-                  <button onClick={() => setChartType('pie')} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'pie' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>Status</button>
-                  <button onClick={() => setChartType('bar')} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'bar' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>Completion</button>
-                </div>
-              </div>
-              {chartType === 'pie' ? (
-                <div className="flex items-center gap-22">
-                  <div className="relative flex-shrink-0">
-                    <Pie {...pieConfig} />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-2xl font-bold text-slate-900 dark:text-white">{totalCount}</span>
-                      <span className="text-xs text-slate-400 dark:text-slate-500">Total</span>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    {Object.entries(STATUS_COLORS).map(([label, color]) => {
-                      const val = counts[label.toLowerCase()] ?? 0
-                      const pct = totalCount > 0 ? ((val / totalCount) * 100).toFixed(1) : '0.0'
-                      return (
-                        <div key={label} className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                          <span className="text-xs text-slate-600 dark:text-slate-300 w-16">{label}</span>
-                          <span className="text-xs text-slate-500 dark:text-slate-400">{val} ({pct}%)</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-[270px] w-full mx-auto">
-                  <Column {...barConfig} />
-                </div>
-              )}
-            </div>
-
-            <div className={CARD}>
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">Recent Tasks</p>
-                <button onClick={() => navigate('/table' + navSearch)} className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors">
-                  View all
-                </button>
-              </div>
-              {recentTasks.length === 0 ? (
-                <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">No tasks yet</p>
-              ) : (
-                <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {recentTasks.map((task) => {
-                    const status = task.completed ? 'Completed' : isOverdue(task.dueDate, task.completed) ? 'Overdue' : 'Active'
-                    return (
-                      <div key={task.id} className="flex items-center gap-3 py-3">
-                        <div className={CIRCLE} />
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <p className={`text-sm font-medium truncate ${task.completed ? 'line-through text-slate-400' : 'text-slate-800 dark:text-white'}`}>{task.title}</p>
-                          {task.category && <span className={CAT_BADGE}>{task.category}</span>}
-                        </div>
-                        <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium flex-shrink-0 ${TASK_STATUS_CLS[status]}`}>{status}</span>
-                        <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0 w-24 text-right">{fmtDate(task.createdAt)}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            <DashboardCharts />
+            <RecentTasksCard navSearch={navSearch} />
           </div>
 
           <div className="flex flex-col gap-4">
-            <div className={`${CARD} pb-12`}>
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">Tasks by Priority</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mb-8.5">Breakdown of tasks by priority level</p>
-              <div className="space-y-8.5">
-                {PRIORITY_BARS.map(({ key, color }) => {
-                  const count = priorityCounts[key] ?? 0
-                  const pct = totalCount > 0 ? (count / totalCount) * 100 : 0
-                  return (
-                    <div key={key}>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{key}</span>
-                        <span className="text-xs font-bold text-slate-900 dark:text-white">{count}</span>
-                      </div>
-                      <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className={CARD}>
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">Tasks Due Soon</p>
-                <button onClick={() => navigate('/table' + navSearch)} className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors">
-                  View all
-                </button>
-              </div>
-              {dueSoonTasks.length === 0 ? (
-                <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">No upcoming deadlines</p>
-              ) : (
-                <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {dueSoonTasks.map(({ id, title, category, dueDate, daysLeft }) => {
-                    const urgent = daysLeft <= 3
-                    const cls = urgent ? 'text-red-500' : 'text-amber-500'
-                    const badgeCls = urgent ? 'bg-red-50 text-red-500 dark:bg-red-900/20' : 'bg-amber-50 text-amber-500 dark:bg-amber-900/20'
-                    const dayLabel = daysLeft === 0 ? 'Today' : `${daysLeft}d left`
-                    return (
-                      <div key={id} className="flex items-center gap-3 py-3">
-                        <div className={CIRCLE} />
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-800 dark:text-white truncate">{title}</p>
-                          {category && <span className={CAT_BADGE}>{category}</span>}
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${badgeCls}`}>{dayLabel}</span>
-                          <span className={`text-xs font-medium ${cls}`}>{fmtDate(dueDate)}</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            <PriorityCard />
+            <DueSoonCard navSearch={navSearch} />
           </div>
         </div>
       </main>

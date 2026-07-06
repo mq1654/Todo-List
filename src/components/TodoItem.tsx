@@ -1,13 +1,13 @@
 import { useState, useRef, useCallback, memo } from 'react';
-import { useStoreActions } from '../store';
+import { useStoreActions, useStoreState } from '../store';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Pencil, Check, Circle, Calendar, Tag } from 'lucide-react';
 import TodoInput from './TodoInput';
-import type { Todo, TodoPayload } from '../store/types';
+import type { TodoPayload } from '../store/types';
 import { getPriorityColor, isOverdue } from '../utils/todoHelpers';
 
 interface TodoItemProps {
-  item: Todo;
+  id: string;
   isSelected?: boolean;
   isSelectionMode?: boolean;
   onToggleSelect?: (id: string) => void;
@@ -15,16 +15,19 @@ interface TodoItemProps {
 }
 
 const TodoItem = memo(({ 
-  item, 
+  id, 
   isSelected = false, 
   isSelectionMode = false, 
   onToggleSelect,
   onLongPress,
 }: TodoItemProps) => {
+  const item = useStoreState(state => state.todos.entities[id]);
   const [isEditing, setIsEditing] = useState(false)
   const navigate = useNavigate()
   const timerRef = useRef<number | null>(null)
   const longPressActivated = useRef(false)
+
+  if (!item) return null;
 
   const remove = useStoreActions((a) => a.todos.remove)
   const update = useStoreActions((a) => a.todos.update)

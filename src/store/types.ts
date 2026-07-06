@@ -22,17 +22,17 @@ export interface TodoPayload {
 }
 
 export interface TodoModel {
-  items: Todo[];
-  filter: 'all' | 'active' | 'completed';
-  searchTerm: string;
-  categoryFilter: string;
-  sortByPriority: boolean;
-  showOverdueOnly: boolean;
+  entities: Record<string, Todo>;
+  allIds: string[];
+
   
   totalCount: Computed<TodoModel, number>;
   activeCount: Computed<TodoModel, number>;
   completedCount: Computed<TodoModel, number>;
-  filteredItems: Computed<TodoModel, Todo[]>;
+  overdueCount: Computed<TodoModel, number>;
+  items: Computed<TodoModel, Todo[]>;
+  recentTasks: Computed<TodoModel, Todo[]>;
+  dueSoonTasks: Computed<TodoModel, (Todo & { daysLeft: number })[]>;
 
   add: Action<TodoModel, TodoPayload>;
   remove: Action<TodoModel, string>;
@@ -40,14 +40,6 @@ export interface TodoModel {
   update: Action<TodoModel, TodoPayload & { id: string }>;
   toggleStatus: Action<TodoModel, string>;
   reorderTodo: Action<TodoModel, { sourceId: string; destinationId: string; isMovingDown: boolean }>;
-
-  setFilter: Action<TodoModel, 'all' | 'active' | 'completed'>;
-  setSearchTerm: Action<TodoModel, string>;
-  setCategoryFilter: Action<TodoModel, string>;
-  toggleSortByPriority: Action<TodoModel>;
-  toggleShowOverdueOnly: Action<TodoModel>;
-  setSortByPriority: Action<TodoModel, boolean>;
-  setShowOverdueOnly: Action<TodoModel, boolean>;
 
   migrateCategory: Action<TodoModel, { from: string; to: string }>;
 }

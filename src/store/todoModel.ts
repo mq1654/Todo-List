@@ -1,60 +1,45 @@
 import { action, computed } from 'easy-peasy'
 import { TodoModel } from './types';
+import { isOverdue } from '../utils/todoHelpers';
 
 const priorityValue: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
 
 const todoModel : TodoModel = {
-  items: [],
-  filter: 'all',
-  searchTerm: '',
-  categoryFilter: 'all',
-  sortByPriority: false,
-  showOverdueOnly: false,
+  entities: {},
+  allIds: [],
+  items: computed((state) => state.allIds.map(id => state.entities[id])),
 
   totalCount: computed((state) => state.items.length),
   activeCount: computed((state) => state.items.filter((i) => !i.completed).length),
   completedCount: computed((state) => state.items.filter((i) => i.completed).length),
+  overdueCount: computed((state) => state.items.filter((i) => isOverdue(i.dueDate, i.completed)).length),
 
-  filteredItems: computed((state) => {
-    const term = state.searchTerm.toLowerCase().trim()
-    const todayStr = new Date().toISOString().split('T')[0]
-
-    let result = state.items.filter((item) => {
-      if (state.filter === 'active') return !item.completed
-      if (state.filter === 'completed') return item.completed
-      return true
-    })
-
-    if (state.categoryFilter !== 'all') {
-      result = result.filter((item) => item.category === state.categoryFilter)
-    }
-
-    if (state.showOverdueOnly) {
-      result = result.filter((item) => {
-        if (item.completed || !item.dueDate) return false
-        return item.dueDate < todayStr
-      })
-    }
-
-    if (term) {
-      result = result.filter((item) => {
-        return (
-          item.title.toLowerCase().includes(term) ||
-          (item.description && item.description.toLowerCase().includes(term))
-        )
-      })
-    }
-
-    if (state.sortByPriority) {
-      result = [...result].sort((a, b) => priorityValue[b.priority] - priorityValue[a.priority])
-    }
-
-    return result
+  recentTasks: computed((state) => 
+    [...state.items].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 3)
+  ),
+  
+  dueSoonTasks: computed((state) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    return state.items
+      .filter((i) => !i.completed && i.dueDate && i.dueDate >= todayStr)
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+      .slice(0, 3)
+      .map((i) => ({
+        ...i,
+        daysLeft: Math.ceil((new Date(i.dueDate).getTime() - todayMs) / 86400000),
+      }));
   }),
 
+
+
   add: action((state, payload) => {
-    state.items.unshift({
-      id: crypto.randomUUID(),
+    const id = crypto.randomUUID()
+    const newTodo = {
+      id,
       title: payload.title.trim(),
       description: payload.description ? payload.description.trim() : '',
       category: payload.category,
@@ -62,23 +47,26 @@ const todoModel : TodoModel = {
       dueDate: payload.dueDate ?? '',
       completed: false,
       createdAt: new Date().toISOString(),
-    })
+    }
+    state.entities[id] = newTodo
+    state.allIds.unshift(id)
   }),
 
   remove: action((state, id) => {
-    state.items = state.items.filter((item) => item.id !== id)
+    delete state.entities[id]
+    state.allIds = state.allIds.filter((i) => i !== id)
   }),
 
   deleteMultiple: action((state, ids) => {
+    ids.forEach(id => delete state.entities[id])
     const idSet = new Set(ids);
-    state.items = state.items.filter((item) => !idSet.has(item.id));
+    state.allIds = state.allIds.filter((i) => !idSet.has(i));
   }),
 
   update: action((state, payload) => {
-    const index = state.items.findIndex((item) => item.id === payload.id)
-    if (index !== -1) {
-      state.items[index] = {
-        ...state.items[index],
+    if (state.entities[payload.id]) {
+      state.entities[payload.id] = {
+        ...state.entities[payload.id],
         title: payload.title.trim(),
         description: payload.description ? payload.description.trim() : '',
         category: payload.category,
@@ -90,7 +78,7 @@ const todoModel : TodoModel = {
   }),
 
   toggleStatus: action((state, id) => {
-    const item = state.items.find((item) => item.id === id)
+    const item = state.entities[id]
     if (item) {
       item.completed = !item.completed
       if (item.completed) {
@@ -101,59 +89,28 @@ const todoModel : TodoModel = {
     }
   }),
 
-  setFilter: action((state, filter) => {
-    state.filter = filter
-  }),
 
-  setSearchTerm: action((state, term) => {
-    state.searchTerm = term
-  }),
-
-  setCategoryFilter: action((state, category) => {
-    state.categoryFilter = category
-  }),
-
-  toggleSortByPriority: action((state) => {
-    state.sortByPriority = !state.sortByPriority
-  }),
-
-  toggleShowOverdueOnly: action((state) => {
-    state.showOverdueOnly = !state.showOverdueOnly
-  }),
-
-  setSortByPriority: action((state, value) => {
-    state.sortByPriority = value
-  }),
-
-  setShowOverdueOnly: action((state, value) => {
-    state.showOverdueOnly = value
-  }),
 
   migrateCategory: action((state, payload) => {
     const { from, to } = payload
-    state.items.forEach(item => {
-      if (item.category === from) {
-        item.category = to
+    state.allIds.forEach(id => {
+      if (state.entities[id].category === from) {
+        state.entities[id].category = to
       }
     })
-    if (state.categoryFilter === from) {
-      state.categoryFilter = 'all'
-    }
   }),
 
   reorderTodo: action((state, { sourceId, destinationId, isMovingDown }) => {
-    state.sortByPriority = false;
-
-    const sourceIdx = state.items.findIndex(i => i.id === sourceId);
+    const sourceIdx = state.allIds.indexOf(sourceId);
     if (sourceIdx === -1) return;
 
-    const [sourceItem] = state.items.splice(sourceIdx, 1);
+    const [removedId] = state.allIds.splice(sourceIdx, 1);
 
-    const destIdx = state.items.findIndex(i => i.id === destinationId);
+    const destIdx = state.allIds.indexOf(destinationId);
     if (destIdx !== -1) {
-      state.items.splice(isMovingDown ? destIdx + 1 : destIdx, 0, sourceItem);
+      state.allIds.splice(isMovingDown ? destIdx + 1 : destIdx, 0, removedId);
     } else {
-      state.items.unshift(sourceItem);
+      state.allIds.unshift(removedId);
     }
   }),
 }

@@ -1,10 +1,11 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useDeferredValue } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useStoreState, useStoreActions } from '../store'
 import { Pagination, Select, Tooltip, Modal } from 'antd'
 import { ArrowLeft, Search, Trash2, CheckCircle2, Circle, X, Download, AlertCircle } from 'lucide-react'
 import type { Todo } from '../store/types'
 import { getPriorityColor, isOverdue, exportTodosToCSV } from '../utils/todoHelpers'
+import { keepParams, TODO_KEYS } from '../utils/urlHelpers'
 
 const PAGE_SIZE = 10
 
@@ -82,7 +83,7 @@ interface TableFilters {
 function useTableUrlSync(categories: string[]) {
   const [searchParams, setSearchParams] = useSearchParams()
 
-  function readParams(): TableFilters {
+  const filters = useMemo<TableFilters>(() => {
     const page = parseInt(searchParams.get('tPage') ?? '1', 10)
     const cat  = searchParams.get('tCat') ?? 'all'
     const pri  = searchParams.get('tPri') ?? 'all'
@@ -96,29 +97,25 @@ function useTableUrlSync(categories: string[]) {
       statusFilter:   VALID_STATUSES.includes(sta)   ? sta : 'all',
       currentPage:    Number.isFinite(page) && page > 0 ? page : 1,
     }
-  }
+  }, [searchParams, categories])
 
-  const [filters, setFiltersState] = useState<TableFilters>(readParams)
-
-  useEffect(() => {
+  function setFilters(patch: Partial<TableFilters>) {
+    const nextFilters = { ...filters, ...patch }
     const params = new URLSearchParams(searchParams)
 
     const set = (key: string, val: string, defaultVal: string) =>
       val !== defaultVal ? params.set(key, val) : params.delete(key)
 
-    set('tQ',     filters.globalSearch,   '')
-    set('tTitle', filters.titleSearch,    '')
-    set('tCat',   filters.categoryFilter, 'all')
-    set('tPri',   filters.priorityFilter, 'all')
-    set('tSta',   filters.statusFilter,   'all')
-    if (filters.currentPage > 1) params.set('tPage', String(filters.currentPage))
+    set('tQ',     nextFilters.globalSearch,   '')
+    set('tTitle', nextFilters.titleSearch,    '')
+    set('tCat',   nextFilters.categoryFilter, 'all')
+    set('tPri',   nextFilters.priorityFilter, 'all')
+    set('tSta',   nextFilters.statusFilter,   'all')
+    
+    if (nextFilters.currentPage > 1) params.set('tPage', String(nextFilters.currentPage))
     else params.delete('tPage')
 
     setSearchParams(params, { replace: true })
-  }, [filters])
-
-  function setFilters(patch: Partial<TableFilters>) {
-    setFiltersState((prev) => ({ ...prev, ...patch }))
   }
 
   function resetPage() {
@@ -153,6 +150,9 @@ export default function TableViewPage() {
   const { filters, setFilters, resetPage, clearAllFilters } = useTableUrlSync(categories)
   const { globalSearch, titleSearch, categoryFilter, priorityFilter, statusFilter, currentPage } = filters
 
+  const deferredGlobalSearch = useDeferredValue(globalSearch)
+  const deferredTitleSearch = useDeferredValue(titleSearch)
+
   const [selectedIds,    setSelectedIds]    = useState<Set<string>>(new Set())
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
@@ -163,8 +163,8 @@ export default function TableViewPage() {
   ], [categories])
 
   const filteredData = useMemo(() => {
-    const term      = globalSearch.toLowerCase().trim()
-    const titleTerm = titleSearch.toLowerCase().trim()
+    const term      = deferredGlobalSearch.toLowerCase().trim()
+    const titleTerm = deferredTitleSearch.toLowerCase().trim()
 
     return items.filter((item) => {
       if (term) {
@@ -184,7 +184,7 @@ export default function TableViewPage() {
       if (statusFilter === 'overdue'   && !isOverdue(item.dueDate, item.completed)) return false
       return true
     })
-  }, [items, globalSearch, titleSearch, categoryFilter, priorityFilter, statusFilter])
+  }, [items, deferredGlobalSearch, deferredTitleSearch, categoryFilter, priorityFilter, statusFilter])
 
   const totalFiltered = filteredData.length
 
@@ -246,7 +246,7 @@ export default function TableViewPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 dark:bg-slate-800 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
           <button
-            onClick={() => navigate('/' + location.search)}
+            onClick={() => navigate('/' + keepParams(location.search, TODO_KEYS))}
             className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:text-white"
           >
             <ArrowLeft size={16} />
@@ -267,12 +267,12 @@ export default function TableViewPage() {
               type="text"
               placeholder="Search all columns..."
               value={globalSearch}
-              onChange={(e) => { setFilters({ globalSearch: e.target.value }); resetPage() }}
+              onChange={(e) => { setFilters({ globalSearch: e.target.value, currentPage: 1 }) }}
               className="w-full pl-8 pr-8 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-slate-500 dark:placeholder-slate-500"
             />
             {globalSearch && (
               <button
-                onClick={() => { setFilters({ globalSearch: '' }); resetPage() }}
+                onClick={() => { setFilters({ globalSearch: '', currentPage: 1 }) }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               >
                 <X size={13} />
@@ -368,12 +368,12 @@ export default function TableViewPage() {
                         type="text"
                         placeholder="Search title..."
                         value={titleSearch}
-                        onChange={(e) => { setFilters({ titleSearch: e.target.value }); resetPage() }}
+                        onChange={(e) => { setFilters({ titleSearch: e.target.value, currentPage: 1 }) }}
                         className="w-full pl-2 pr-6 py-1 text-xs rounded border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 outline-none focus:ring-1 focus:ring-slate-400 transition-colors dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder-slate-500 dark:focus:ring-slate-500"
                       />
                       {titleSearch && (
                         <button
-                          onClick={() => { setFilters({ titleSearch: '' }); resetPage() }}
+                          onClick={() => { setFilters({ titleSearch: '', currentPage: 1 }) }}
                           className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                         >
                           <X size={11} />
@@ -386,7 +386,7 @@ export default function TableViewPage() {
                     <Select
                       size="small"
                       value={categoryFilter}
-                      onChange={(v) => { setFilters({ categoryFilter: v }); resetPage() }}
+                      onChange={(v) => { setFilters({ categoryFilter: v, currentPage: 1 }) }}
                       options={categoryOptions}
                       className="w-full"
                       popupMatchSelectWidth={false}
@@ -397,7 +397,7 @@ export default function TableViewPage() {
                     <Select
                       size="small"
                       value={priorityFilter}
-                      onChange={(v) => { setFilters({ priorityFilter: v }); resetPage() }}
+                      onChange={(v) => { setFilters({ priorityFilter: v, currentPage: 1 }) }}
                       options={PRIORITY_OPTIONS}
                       className="w-full"
                       popupMatchSelectWidth={false}
@@ -408,7 +408,7 @@ export default function TableViewPage() {
                     <Select
                       size="small"
                       value={statusFilter}
-                      onChange={(v) => { setFilters({ statusFilter: v }); resetPage() }}
+                      onChange={(v) => { setFilters({ statusFilter: v, currentPage: 1 }) }}
                       options={STATUS_OPTIONS}
                       className="w-full"
                       popupMatchSelectWidth={false}

@@ -1,4 +1,5 @@
-import { useStoreState, useStoreActions } from '../store'
+import { useStoreState } from '../store'
+import { useTodosFilter } from '../hooks/useTodosFilter'
 import { Search, SlidersHorizontal, ArrowDownAZ, AlertCircle } from 'lucide-react'
 import { Droppable } from '@hello-pangea/dnd'
 
@@ -14,18 +15,8 @@ const FILTER_OPTIONS: FilterOption[] = [
 ]
 
 function TodoFilter() {
-  const filter = useStoreState((state) => state.todos.filter)
-  const searchTerm = useStoreState((state) => state.todos.searchTerm)
-  const categoryFilter = useStoreState((state) => state.todos.categoryFilter)
-  const sortByPriority = useStoreState((state) => state.todos.sortByPriority)
-  const showOverdueOnly = useStoreState((state) => state.todos.showOverdueOnly)
   const categories = useStoreState((state) => state.settings?.categories || ['Work', 'Personal', 'Learning'])
-
-  const setFilter = useStoreActions((actions) => actions.todos.setFilter)
-  const setSearchTerm = useStoreActions((actions) => actions.todos.setSearchTerm)
-  const setCategoryFilter = useStoreActions((actions) => actions.todos.setCategoryFilter)
-  const toggleSortByPriority = useStoreActions((actions) => actions.todos.toggleSortByPriority)
-  const toggleShowOverdueOnly = useStoreActions((actions) => actions.todos.toggleShowOverdueOnly)
+  const { filter, searchTerm, categoryFilter, sortByPriority, showOverdueOnly, setFilterParam, toggleFilterParam } = useTodosFilter()
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-4 dark:bg-slate-800 dark:border-slate-700">
@@ -37,7 +28,7 @@ function TodoFilter() {
         <input
           type="search"
           value={searchTerm}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilterParam('searchTerm', e.target.value)}
           placeholder="Search tasks..."
           className="w-full pl-9 pr-4 py-2.5 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors dark:bg-slate-900 dark:border-slate-600 dark:text-white dark:focus:ring-slate-500 dark:focus:bg-slate-800 dark:placeholder-slate-500"
         />
@@ -55,7 +46,7 @@ function TodoFilter() {
                       <button
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        onClick={() => setFilter(option.value)}
+                        onClick={() => setFilterParam('filter', option.value)}
                         className={`relative px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-slate-700 ${
                           filter === option.value
                             ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
@@ -73,7 +64,7 @@ function TodoFilter() {
               return (
                 <button
                   key={option.value}
-                  onClick={() => setFilter(option.value)}
+                  onClick={() => setFilterParam('filter', option.value)}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-slate-700 ${
                     filter === option.value
                       ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
@@ -92,7 +83,7 @@ function TodoFilter() {
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={categoryFilter}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCategoryFilter(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterParam('categoryFilter', e.target.value)}
             className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900 transition-colors cursor-pointer dark:bg-slate-900 dark:border-slate-600 dark:text-white dark:focus:ring-slate-500 dark:focus:bg-slate-800"
           >
             <option value="all">All Categories</option>
@@ -102,7 +93,7 @@ function TodoFilter() {
           </select>
 
           <button
-            onClick={() => toggleSortByPriority()}
+            onClick={() => toggleFilterParam('sortByPriority')}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-slate-700 ${
               sortByPriority
                 ? 'bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50'
@@ -114,7 +105,7 @@ function TodoFilter() {
           </button>
 
           <button
-            onClick={() => toggleShowOverdueOnly()}
+            onClick={() => toggleFilterParam('showOverdueOnly')}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-slate-700 ${
               showOverdueOnly
                 ? 'bg-red-100 text-red-800 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50'
