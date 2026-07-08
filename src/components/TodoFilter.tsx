@@ -1,4 +1,4 @@
-import { useStoreState } from '../store'
+import { useStore } from '../store'
 import { useTodosFilter } from '../hooks/useTodosFilter'
 import { Search, SlidersHorizontal, ArrowDownAZ, AlertCircle } from 'lucide-react'
 import { Droppable } from '@hello-pangea/dnd'
@@ -15,16 +15,14 @@ const FILTER_OPTIONS: FilterOption[] = [
 ]
 
 function TodoFilter() {
-  const categories = useStoreState((state) => state.settings?.categories || ['Work', 'Personal', 'Learning'])
-  const { filter, searchTerm, categoryFilter, sortByPriority, showOverdueOnly, setFilterParam, toggleFilterParam } = useTodosFilter()
+  const categories = useStore((s) => s.settings.categories)
+  const { filter, searchTerm, categoryFilter, sortByPriority, showOverdueOnly, setFilterParam, toggleFilterParam } =
+    useTodosFilter()
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-4 dark:bg-slate-800 dark:border-slate-700">
       <div className="relative">
-        <Search
-          size={15}
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-        />
+        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         <input
           type="search"
           value={searchTerm}
@@ -60,7 +58,7 @@ function TodoFilter() {
                   </Droppable>
                 )
               }
-              
+
               return (
                 <button
                   key={option.value}
@@ -78,7 +76,7 @@ function TodoFilter() {
           </div>
         </div>
 
-        <div className="h-6 w-px bg-slate-200 hidden sm:block dark:bg-slate-700"></div>
+        <div className="h-6 w-px bg-slate-200 hidden sm:block dark:bg-slate-700" />
 
         <div className="flex flex-wrap items-center gap-2">
           <select

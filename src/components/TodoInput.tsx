@@ -1,32 +1,34 @@
 import { useFormik } from 'formik'
 import { useMemo } from 'react'
-import { useStoreState } from '../store';
-import { createTodoSchema } from '../schemas/todoSchema';
-import type { Todo, TodoPayload } from '../store/types';
+import { useStore } from '../store'
+import { createTodoSchema } from '../schemas/todoSchema'
+import type { Todo, TodoPayload } from '../store/types'
 
 const EMPTY_VALUES: Partial<Todo> = {
   title: '',
   description: '',
   category: '',
   dueDate: '',
-};
+}
 
-const PRIORITIES: Todo['priority'][] = ['High', 'Medium', 'Low'];
+const PRIORITIES: Todo['priority'][] = ['High', 'Medium', 'Low']
+
 interface FieldErrorProps {
-  message?: string | false;
+  message?: string | false
 }
 function FieldError({ message }: FieldErrorProps) {
   if (!message) return null
   return <p className="mt-1 text-xs text-red-500 font-medium">{message}</p>
 }
+
 interface FormInputProps {
-  id: string;
-  label: string;
-  isRequired?: boolean;
-  error?: string | false | undefined;
-  touched?: boolean;
-  optionalText?: string;
-  children: React.ReactNode;
+  id: string
+  label: string
+  isRequired?: boolean
+  error?: string | false | undefined
+  touched?: boolean
+  optionalText?: string
+  children: React.ReactNode
 }
 function FormInput({ id, label, isRequired, error, touched, optionalText, children }: FormInputProps) {
   return (
@@ -39,15 +41,16 @@ function FormInput({ id, label, isRequired, error, touched, optionalText, childr
       {children}
       {touched && <FieldError message={error} />}
     </div>
-  );
+  )
 }
+
 interface TodoInputProps {
-  onSubmit: (values: TodoPayload) => void;
-  initialValues?: Partial<Todo>;
-  onCancel?: () => void;
+  onSubmit: (values: TodoPayload) => void
+  initialValues?: Partial<Todo>
+  onCancel?: () => void
 }
 function TodoInput({ onSubmit, initialValues, onCancel }: TodoInputProps) {
-  const categories = useStoreState(state => state.settings?.categories || ['Work', 'Personal', 'Learning'])
+  const categories = useStore((s) => s.settings.categories)
   const resolvedInitialValues = initialValues ?? EMPTY_VALUES
   const isEditMode = resolvedInitialValues.title !== ''
   const schema = useMemo(() => createTodoSchema(categories), [categories])
@@ -75,12 +78,12 @@ function TodoInput({ onSubmit, initialValues, onCancel }: TodoInputProps) {
         const [day, month, year] = values.dueDate.split('-')
         isoDate = `${year}-${month}-${day}`
       }
-      onSubmit({ 
-        title: values.title || '', 
-        description: values.description || '', 
-        category: values.category || '', 
-        priority: (values.priority || 'Low') as 'High' | 'Medium' | 'Low', 
-        dueDate: isoDate || null 
+      onSubmit({
+        title: values.title || '',
+        description: values.description || '',
+        category: values.category || '',
+        priority: (values.priority || 'Low') as 'High' | 'Medium' | 'Low',
+        dueDate: isoDate || null,
       })
       resetForm()
     },
@@ -92,40 +95,28 @@ function TodoInput({ onSubmit, initialValues, onCancel }: TodoInputProps) {
     if (val.endsWith(' ') || val.endsWith('-')) {
       const parts = val.replace(/[\s-]$/, '').split('-')
       const lastPart = parts[parts.length - 1]
-      if (lastPart && lastPart.length === 1) {
-        parts[parts.length - 1] = `0${lastPart}`
-      }
+      if (lastPart && lastPart.length === 1) parts[parts.length - 1] = `0${lastPart}`
       val = parts.join('-') + '-'
     }
 
-    const cleaned = val.replace(/[^\d-]/g, '')
-    const digits = cleaned.replace(/\D/g, '')
-    
+    const digits = val.replace(/[^\d-]/g, '').replace(/\D/g, '')
     let formatted = digits
-    if (digits.length > 2 && digits.length <= 4) {
-      formatted = `${digits.slice(0, 2)}-${digits.slice(2)}`
-    } else if (digits.length > 4) {
-      formatted = `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4, 8)}`
-    }
+    if (digits.length > 2 && digits.length <= 4) formatted = `${digits.slice(0, 2)}-${digits.slice(2)}`
+    else if (digits.length > 4) formatted = `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4, 8)}`
 
-    if (val.endsWith('-') && (digits.length === 2 || digits.length === 4)) {
-      formatted += '-'
-    }
+    if (val.endsWith('-') && (digits.length === 2 || digits.length === 4)) formatted += '-'
 
     formik.setFieldValue('dueDate', formatted)
   }
 
-  const baseInputClass = "w-full px-3.5 py-2.5 text-sm rounded-lg border bg-slate-50 text-slate-900 transition-colors outline-none focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent placeholder:text-slate-400 dark:bg-slate-900 dark:text-white dark:focus:bg-slate-900 dark:focus:ring-slate-500 dark:placeholder-slate-500"
-  
-  const getInputClass = (field: keyof typeof formikInitialValues) => 
+  const baseInputClass =
+    'w-full px-3.5 py-2.5 text-sm rounded-lg border bg-slate-50 text-slate-900 transition-colors outline-none focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent placeholder:text-slate-400 dark:bg-slate-900 dark:text-white dark:focus:bg-slate-900 dark:focus:ring-slate-500 dark:placeholder-slate-500'
+
+  const getInputClass = (field: keyof typeof formikInitialValues) =>
     `${baseInputClass} ${formik.touched[field] && formik.errors[field] ? 'border-red-400 focus:ring-red-400 dark:border-red-500 dark:focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`
 
   return (
-    <form
-      onSubmit={formik.handleSubmit}
-      noValidate
-      className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4 dark:bg-slate-800 dark:border-slate-700"
-    >
+    <form onSubmit={formik.handleSubmit} noValidate className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4 dark:bg-slate-800 dark:border-slate-700">
       <FormInput id="title" label="Title" isRequired error={formik.errors.title as string} touched={formik.touched.title as boolean}>
         <input
           id="title"
@@ -176,7 +167,7 @@ function TodoInput({ onSubmit, initialValues, onCancel }: TodoInputProps) {
             className={getInputClass('priority')}
           >
             <option value="" disabled hidden>Select</option>
-            {PRIORITIES.map(pri => <option key={pri} value={pri}>{pri}</option>)}
+            {PRIORITIES.map((pri) => <option key={pri} value={pri}>{pri}</option>)}
           </select>
         </FormInput>
       </div>

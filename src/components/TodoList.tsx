@@ -1,20 +1,14 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useStoreState, useStoreActions } from '../store';
-import { useTodosFilter } from '../hooks/useTodosFilter';
-import type { TodoModel } from '../store/types';
-import { ClipboardList, Trash2, X, ChevronDown } from 'lucide-react';
-import { Droppable, Draggable } from '@hello-pangea/dnd';
-import TodoItem from './TodoItem';
+import { useState, useCallback, useMemo } from 'react'
+import { useStore } from '../store'
+import { useTodosFilter } from '../hooks/useTodosFilter'
+import { ClipboardList, Trash2, X } from 'lucide-react'
+import { Droppable, Draggable } from '@hello-pangea/dnd'
+import TodoItem from './TodoItem'
 
 const PAGE_STEP = 5
 
-interface EmptyStateProps {
-  filter: string;
-  searchTerm: string;
-}
-function EmptyState({ filter, searchTerm }: EmptyStateProps) {
-  const isFiltered = filter !== 'all' || searchTerm.trim().length > 0;
-
+function EmptyState({ filter, searchTerm }: { filter: string; searchTerm: string }) {
+  const isFiltered = filter !== 'all' || searchTerm.trim().length > 0
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-4">
@@ -24,85 +18,66 @@ function EmptyState({ filter, searchTerm }: EmptyStateProps) {
         {isFiltered ? 'No tasks match your criteria' : 'No tasks yet'}
       </p>
       <p className="mt-1 text-xs text-slate-400">
-        {isFiltered
-          ? 'Try adjusting your search or filter.'
-          : 'Add your first task using the form above.'}
+        {isFiltered ? 'Try adjusting your search or filter.' : 'Add your first task using the form above.'}
       </p>
     </div>
   )
 }
 
-function TodoList() {
-  const { filteredIds, filter, searchTerm } = useTodosFilter()
-  const deleteMultiple = useStoreActions((actions) => actions.todos.deleteMultiple)
+interface TodoListInnerProps {
+  filteredIds: string[]
+  deleteMultiple: (ids: string[]) => void
+}
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(PAGE_STEP);
-
-  useEffect(() => {
-    setVisibleCount(PAGE_STEP)
-  }, [filter, searchTerm])
+function TodoListInner({ filteredIds, deleteMultiple }: TodoListInnerProps) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(PAGE_STEP)
 
   const visibleIds = useMemo(() => filteredIds.slice(0, visibleCount), [filteredIds, visibleCount])
   const remaining = Math.max(0, filteredIds.length - visibleCount)
 
   const handleToggleSelect = useCallback((id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
 
-  const isAllSelected = useMemo(() => {
-    if (filteredIds.length === 0) return false;
-    return filteredIds.every(id => selectedIds.has(id));
-  }, [filteredIds, selectedIds]);
-
-  const handleSelectClick = useCallback(() => {
-    setIsSelectionMode(true);
-  }, []);
-
-  const handleSelectAll = useCallback(() => {
-    setSelectedIds(new Set(filteredIds));
-  }, [filteredIds]);
+  const isAllSelected = useMemo(
+    () => filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id)),
+    [filteredIds, selectedIds]
+  )
 
   const handleCancelSelection = useCallback(() => {
-    setSelectedIds(new Set());
-    setIsSelectionMode(false);
-  }, []);
+    setSelectedIds(new Set())
+    setIsSelectionMode(false)
+  }, [])
 
   const handleLongPress = useCallback((id: string) => {
-    setIsSelectionMode(true);
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-  }, []);
+    setIsSelectionMode(true)
+    setSelectedIds((prev) => { const next = new Set(prev); next.add(id); return next })
+  }, [])
 
   const handleDeleteSelected = useCallback(() => {
-    if (selectedIds.size === 0) return;
+    if (selectedIds.size === 0) return
     if (window.confirm(`Are you sure you want to delete ${selectedIds.size} selected item(s)?`)) {
-      deleteMultiple(Array.from(selectedIds));
-      setSelectedIds(new Set());
-      setIsSelectionMode(false);
+      deleteMultiple(Array.from(selectedIds))
+      setSelectedIds(new Set())
+      setIsSelectionMode(false)
     }
-  }, [selectedIds, deleteMultiple]);
+  }, [selectedIds, deleteMultiple])
 
   const handleDeleteAll = useCallback(() => {
-    if (filteredIds.length === 0) return;
+    if (filteredIds.length === 0) return
     if (window.confirm(`Are you sure you want to delete ALL ${filteredIds.length} item(s) in this view?`)) {
-      deleteMultiple(filteredIds);
-      setSelectedIds(new Set());
-      setIsSelectionMode(false);
+      deleteMultiple(filteredIds)
+      setSelectedIds(new Set())
+      setIsSelectionMode(false)
     }
-  }, [filteredIds, deleteMultiple]);
-
-  if (filteredIds.length === 0) {
-    return <EmptyState filter={filter} searchTerm={searchTerm} />
-  }
+  }, [filteredIds, deleteMultiple])
 
   return (
     <div className="space-y-3">
@@ -138,14 +113,14 @@ function TodoList() {
 
         {!isSelectionMode ? (
           <button
-            onClick={handleSelectClick}
+            onClick={() => setIsSelectionMode(true)}
             className="text-sm font-bold text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors select-none focus:outline-none"
           >
             Select
           </button>
         ) : (
           <button
-            onClick={isAllSelected ? handleCancelSelection : handleSelectAll}
+            onClick={isAllSelected ? handleCancelSelection : () => setSelectedIds(new Set(filteredIds))}
             className="text-sm font-bold text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors select-none focus:outline-none"
           >
             Select All
@@ -155,19 +130,11 @@ function TodoList() {
 
       <Droppable droppableId="todo-list">
         {(provided) => (
-          <ul
-            className="space-y-2.5"
-            {...provided.droppableProps}
-            ref={provided.innerRef}
-          >
+          <ul className="space-y-2.5" {...provided.droppableProps} ref={provided.innerRef}>
             {visibleIds.map((id, index) => (
               <Draggable key={id} draggableId={id} index={index}>
                 {(provided) => (
-                  <li
-                    ref={provided.innerRef}
-                    {...provided.draggableProps}
-                    {...provided.dragHandleProps}
-                  >
+                  <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
                     <TodoItem
                       id={id}
                       isSelected={selectedIds.has(id)}
@@ -186,13 +153,28 @@ function TodoList() {
 
       {remaining > 0 && (
         <button
-          onClick={() => setVisibleCount(v => v + PAGE_STEP)}
-          className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all group focus:outline-none cursor-pointer"
+          onClick={() => setVisibleCount((v) => v + PAGE_STEP)}
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all focus:outline-none cursor-pointer"
         >
           View more
         </button>
       )}
     </div>
+  )
+}
+
+function TodoList() {
+  const { filteredIds, filter, searchTerm } = useTodosFilter()
+  const deleteMultiple = useStore((s) => s.todos.deleteMultiple)
+
+  if (filteredIds.length === 0) return <EmptyState filter={filter} searchTerm={searchTerm} />
+
+  return (
+    <TodoListInner
+      key={`${filter}|${searchTerm}`}
+      filteredIds={filteredIds}
+      deleteMultiple={deleteMultiple}
+    />
   )
 }
 

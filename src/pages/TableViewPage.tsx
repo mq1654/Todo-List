@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback, useEffect, useDeferredValue } from 'react'
+import { useState, useMemo, useCallback, useDeferredValue } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { useStoreState, useStoreActions } from '../store'
+import { useStore, useTodoItems } from '../store'
 import { Pagination, Select, Tooltip, Modal } from 'antd'
 import { ArrowLeft, Search, Trash2, CheckCircle2, Circle, X, Download, AlertCircle } from 'lucide-react'
 import type { Todo } from '../store/types'
@@ -43,7 +43,7 @@ function StatusBadge({ completed, overdue }: { completed: boolean; overdue?: boo
       </span>
     )
   }
-  
+
   if (overdue) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300">
@@ -99,7 +99,7 @@ function useTableUrlSync(categories: string[]) {
     }
   }, [searchParams, categories])
 
-  function setFilters(patch: Partial<TableFilters>) {
+  const setFilters = (patch: Partial<TableFilters>) => {
     const nextFilters = { ...filters, ...patch }
     const params = new URLSearchParams(searchParams)
 
@@ -111,18 +111,14 @@ function useTableUrlSync(categories: string[]) {
     set('tCat',   nextFilters.categoryFilter, 'all')
     set('tPri',   nextFilters.priorityFilter, 'all')
     set('tSta',   nextFilters.statusFilter,   'all')
-    
+
     if (nextFilters.currentPage > 1) params.set('tPage', String(nextFilters.currentPage))
     else params.delete('tPage')
 
     setSearchParams(params, { replace: true })
   }
 
-  function resetPage() {
-    setFilters({ currentPage: 1 })
-  }
-
-  function clearAllFilters() {
+  const clearAllFilters = () => {
     setFilters({
       globalSearch:   '',
       titleSearch:    '',
@@ -133,25 +129,24 @@ function useTableUrlSync(categories: string[]) {
     })
   }
 
-  return { filters, setFilters, resetPage, clearAllFilters }
+  return { filters, setFilters, resetPage: () => setFilters({ currentPage: 1 }), clearAllFilters }
 }
 
 export default function TableViewPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const items          = useStoreState((s) => s.todos.items)
-  const categories     = useStoreState((s): string[] => s.settings?.categories ?? [])
-  const remove         = useStoreActions((a) => a.todos.remove)
-  const deleteMultiple = useStoreActions((a) => a.todos.deleteMultiple)
-  const toggleStatus   = useStoreActions((a) => a.todos.toggleStatus)
-  const update         = useStoreActions((a) => a.todos.update)
+  const items          = useTodoItems()
+  const categories     = useStore((s) => s.settings.categories)
+  const remove         = useStore((s) => s.todos.remove)
+  const deleteMultiple = useStore((s) => s.todos.deleteMultiple)
+  const toggleStatus   = useStore((s) => s.todos.toggleStatus)
 
-  const { filters, setFilters, resetPage, clearAllFilters } = useTableUrlSync(categories)
+  const { filters, setFilters, clearAllFilters } = useTableUrlSync(categories)
   const { globalSearch, titleSearch, categoryFilter, priorityFilter, statusFilter, currentPage } = filters
 
   const deferredGlobalSearch = useDeferredValue(globalSearch)
-  const deferredTitleSearch = useDeferredValue(titleSearch)
+  const deferredTitleSearch  = useDeferredValue(titleSearch)
 
   const [selectedIds,    setSelectedIds]    = useState<Set<string>>(new Set())
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
@@ -210,14 +205,13 @@ export default function TableViewPage() {
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }, [])
 
-  const clearSelection = useCallback(() => setSelectedIds(new Set()), [])
-
-  const handleDelete = useCallback((id: string) => setDeleteTargetId(id), [])
+  const clearSelection  = useCallback(() => setSelectedIds(new Set()), [])
 
   const confirmDelete = useCallback(() => {
     if (deleteTargetId) {
@@ -253,9 +247,7 @@ export default function TableViewPage() {
             Back
           </button>
           <span className="text-slate-300 dark:text-slate-600 select-none">|</span>
-          <h1 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight uppercase">
-            Table View
-          </h1>
+          <h1 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight uppercase">Table View</h1>
         </div>
       </header>
 
@@ -383,36 +375,15 @@ export default function TableViewPage() {
                   </td>
 
                   <td className="px-4 py-2">
-                    <Select
-                      size="small"
-                      value={categoryFilter}
-                      onChange={(v) => { setFilters({ categoryFilter: v, currentPage: 1 }) }}
-                      options={categoryOptions}
-                      className="w-full"
-                      popupMatchSelectWidth={false}
-                    />
+                    <Select size="small" value={categoryFilter} onChange={(v) => { setFilters({ categoryFilter: v, currentPage: 1 }) }} options={categoryOptions} className="w-full" popupMatchSelectWidth={false} />
                   </td>
 
                   <td className="px-4 py-2">
-                    <Select
-                      size="small"
-                      value={priorityFilter}
-                      onChange={(v) => { setFilters({ priorityFilter: v, currentPage: 1 }) }}
-                      options={PRIORITY_OPTIONS}
-                      className="w-full"
-                      popupMatchSelectWidth={false}
-                    />
+                    <Select size="small" value={priorityFilter} onChange={(v) => { setFilters({ priorityFilter: v, currentPage: 1 }) }} options={PRIORITY_OPTIONS} className="w-full" popupMatchSelectWidth={false} />
                   </td>
 
                   <td className="px-4 py-2">
-                    <Select
-                      size="small"
-                      value={statusFilter}
-                      onChange={(v) => { setFilters({ statusFilter: v, currentPage: 1 }) }}
-                      options={STATUS_OPTIONS}
-                      className="w-full"
-                      popupMatchSelectWidth={false}
-                    />
+                    <Select size="small" value={statusFilter} onChange={(v) => { setFilters({ statusFilter: v, currentPage: 1 }) }} options={STATUS_OPTIONS} className="w-full" popupMatchSelectWidth={false} />
                   </td>
 
                   <td className="px-4 py-2" />
@@ -458,9 +429,7 @@ export default function TableViewPage() {
                             onClick={() => navigate(`/todoDetail/${item.id}`)}
                             className={[
                               'text-left text-sm font-medium hover:underline transition-colors',
-                              item.completed
-                                ? 'line-through text-slate-400 dark:text-slate-500'
-                                : 'text-slate-900 dark:text-white',
+                              item.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white',
                             ].join(' ')}
                           >
                             {item.title}
@@ -489,7 +458,7 @@ export default function TableViewPage() {
                           <div className="flex items-center justify-end gap-1">
                             <Tooltip title="Delete">
                               <button
-                                onClick={() => handleDelete(item.id)}
+                                onClick={() => setDeleteTargetId(item.id)}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors dark:hover:bg-red-900/20 dark:hover:text-red-400"
                               >
                                 <Trash2 size={14} />
@@ -543,14 +512,12 @@ export default function TableViewPage() {
                   if (type === 'page') {
                     const isActive = page === currentPage
                     return (
-                      <button
-                        className={[
-                          'w-7 h-7 flex items-center justify-center text-xs transition-all cursor-pointer focus:outline-none',
-                          isActive
-                            ? 'font-bold text-slate-900 dark:text-white underline underline-offset-4 decoration-2'
-                            : 'font-medium text-slate-500 dark:text-slate-400 hover:font-semibold hover:text-slate-800 dark:hover:text-slate-200',
-                        ].join(' ')}
-                      >
+                      <button className={[
+                        'w-7 h-7 flex items-center justify-center text-xs transition-all cursor-pointer focus:outline-none',
+                        isActive
+                          ? 'font-bold text-slate-900 dark:text-white underline underline-offset-4 decoration-2'
+                          : 'font-medium text-slate-500 dark:text-slate-400 hover:font-semibold hover:text-slate-800 dark:hover:text-slate-200',
+                      ].join(' ')}>
                         {page}
                       </button>
                     )
@@ -573,9 +540,7 @@ export default function TableViewPage() {
         title="Delete task"
         width={380}
       >
-        <p className="text-sm text-black dark:text-black">
-          Are you sure you want to delete this task?
-        </p>
+        <p className="text-sm text-black dark:text-black">Are you sure you want to delete this task?</p>
       </Modal>
 
       <Modal
@@ -590,9 +555,7 @@ export default function TableViewPage() {
       >
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Are you sure you want to delete{' '}
-          <span className="font-semibold">
-            {allFilteredSelected ? 'all' : selectedIds.size}
-          </span>{' '}
+          <span className="font-semibold">{allFilteredSelected ? 'all' : selectedIds.size}</span>{' '}
           task{selectedIds.size !== 1 ? 's' : ''}? This action cannot be undone.
         </p>
       </Modal>

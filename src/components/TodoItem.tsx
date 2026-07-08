@@ -1,66 +1,63 @@
-import { useState, useRef, useCallback, memo } from 'react';
-import { useStoreActions, useStoreState } from '../store';
-import { useNavigate } from 'react-router-dom';
-import { Trash2, Pencil, Check, Circle, Calendar, Tag } from 'lucide-react';
-import TodoInput from './TodoInput';
-import type { TodoPayload } from '../store/types';
-import { getPriorityColor, isOverdue } from '../utils/todoHelpers';
+import { useState, useRef, useCallback, memo } from 'react'
+import { useStore } from '../store'
+import { useNavigate } from 'react-router-dom'
+import { Trash2, Pencil, Check, Circle, Calendar, Tag } from 'lucide-react'
+import TodoInput from './TodoInput'
+import type { TodoPayload } from '../store/types'
+import { getPriorityColor, isOverdue } from '../utils/todoHelpers'
 
 interface TodoItemProps {
-  id: string;
-  isSelected?: boolean;
-  isSelectionMode?: boolean;
-  onToggleSelect?: (id: string) => void;
-  onLongPress?: (id: string) => void;
+  id: string
+  isSelected?: boolean
+  isSelectionMode?: boolean
+  onToggleSelect?: (id: string) => void
+  onLongPress?: (id: string) => void
 }
 
-const TodoItem = memo(({ 
-  id, 
-  isSelected = false, 
-  isSelectionMode = false, 
+const TodoItem = memo(({
+  id,
+  isSelected = false,
+  isSelectionMode = false,
   onToggleSelect,
   onLongPress,
 }: TodoItemProps) => {
-  const item = useStoreState(state => state.todos.entities[id]);
+  const item = useStore((s) => s.todos.entities[id])
+  const remove = useStore((s) => s.todos.remove)
+  const update = useStore((s) => s.todos.update)
+  const toggleStatus = useStore((s) => s.todos.toggleStatus)
+
   const [isEditing, setIsEditing] = useState(false)
   const navigate = useNavigate()
-  const timerRef = useRef<number | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressActivated = useRef(false)
 
-  if (!item) return null;
-
-  const remove = useStoreActions((a) => a.todos.remove)
-  const update = useStoreActions((a) => a.todos.update)
-  const toggleStatus = useStoreActions((a) => a.todos.toggleStatus)
-
   const handleUpdate = useCallback((values: TodoPayload) => {
-    update({ id: item.id, ...values })
+    update({ id, ...values })
     setIsEditing(false)
-  }, [item.id, update])
+  }, [id, update])
 
   const startLongPress = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0 || (e.target as HTMLElement).closest('button, input')) return
     longPressActivated.current = false
-    timerRef.current = window.setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       longPressActivated.current = true
-      onLongPress?.(item.id)
+      onLongPress?.(id)
     }, 700)
-  }, [item.id, onLongPress])
+  }, [id, onLongPress])
 
   const cancelLongPress = useCallback(() => {
     if (timerRef.current === null) return
-    window.clearTimeout(timerRef.current)
+    clearTimeout(timerRef.current)
     timerRef.current = null
   }, [])
 
-  const handleContentClick = useCallback((e: React.MouseEvent) => {
+  const handleContentClick = useCallback(() => {
     if (longPressActivated.current) return
-    if (isSelectionMode) {
-      onToggleSelect?.(item.id)
-      return
-    }
-    navigate(`/todoDetail/${item.id}`)
-  }, [isSelectionMode, item.id, navigate, onToggleSelect])
+    if (isSelectionMode) { onToggleSelect?.(id); return }
+    navigate(`/todoDetail/${id}`)
+  }, [id, isSelectionMode, navigate, onToggleSelect])
+
+  if (!item) return null
 
   if (isEditing) {
     return (
@@ -93,11 +90,11 @@ const TodoItem = memo(({
       } ${isSelected ? 'ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20 border-transparent' : ''}`}
     >
       <button
-        onClick={() => toggleStatus(item.id)}
+        onClick={() => toggleStatus(id)}
         disabled={isSelectionMode}
         aria-label={item.completed ? 'Mark as active' : 'Mark as completed'}
         className={`mt-0.5 shrink-0 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-700 rounded-full ${
-          isSelectionMode 
+          isSelectionMode
             ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-50'
             : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
         }`}
@@ -109,16 +106,9 @@ const TodoItem = memo(({
         )}
       </button>
 
-      <div 
-        className="flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
-        onClick={handleContentClick}
-      >
+      <div className="flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={handleContentClick}>
         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-          <span
-            className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md border ${getPriorityColor(
-              item.priority
-            )}`}
-          >
+          <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md border ${getPriorityColor(item.priority)}`}>
             {item.priority}
           </span>
           <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 rounded-md dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600">
@@ -126,24 +116,20 @@ const TodoItem = memo(({
             {item.category}
           </span>
           {item.dueDate && (
-            <span
-              className={`flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md border ${
-                overdue
-                  ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/50'
-                  : 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-700/50 dark:text-slate-400 dark:border-slate-600'
-              }`}
-            >
+            <span className={`flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md border ${
+              overdue
+                ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/50'
+                : 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-700/50 dark:text-slate-400 dark:border-slate-600'
+            }`}>
               <Calendar size={10} />
               {new Date(item.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>
           )}
         </div>
 
-        <p
-          className={`text-sm font-semibold leading-snug break-words ${
-            item.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
-          }`}
-        >
+        <p className={`text-sm font-semibold leading-snug break-words ${
+          item.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+        }`}>
           {item.title}
         </p>
         {item.description && (
@@ -162,7 +148,7 @@ const TodoItem = memo(({
           <Pencil size={14} />
         </button>
         <button
-          onClick={() => remove(item.id)}
+          onClick={() => remove(id)}
           aria-label="Delete task"
           className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 dark:hover:text-red-400 dark:hover:bg-red-900/30"
         >
@@ -175,7 +161,7 @@ const TodoItem = memo(({
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={() => onToggleSelect?.(item.id)}
+            onChange={() => onToggleSelect?.(id)}
             className="w-5 h-5 text-blue-500 bg-slate-100 border-slate-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-slate-800 focus:ring-2 dark:bg-slate-700 dark:border-slate-600 cursor-pointer"
           />
         </div>
@@ -184,4 +170,4 @@ const TodoItem = memo(({
   )
 })
 
-export default TodoItem;
+export default TodoItem

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, ClipboardList, Activity, CheckCircle2, AlertTriangle, type LucideIcon } from 'lucide-react'
 import { Pie, Column } from '@ant-design/charts'
-import { useStoreState } from '../store'
+import { useTodoStats, useTodoItems, useRecentTasks, useDueSoonTasks } from '../store'
 import { isOverdue } from '../utils/todoHelpers'
 import { keepParams, TABLE_KEYS, TODO_KEYS } from '../utils/urlHelpers'
 
@@ -53,11 +53,7 @@ const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
 function DashboardStats() {
-  const totalCount = useStoreState((s) => s.todos.totalCount)
-  const activeCount = useStoreState((s) => s.todos.activeCount)
-  const completedCount = useStoreState((s) => s.todos.completedCount)
-  const overdueCount = useStoreState((s) => s.todos.overdueCount)
-
+  const { totalCount, activeCount, completedCount, overdueCount } = useTodoStats()
   const counts: Record<string, number> = {
     total: totalCount, active: activeCount, completed: completedCount, overdue: overdueCount,
   }
@@ -81,24 +77,18 @@ function DashboardStats() {
 
 function DashboardCharts() {
   const [chartType, setChartType] = useState<'pie' | 'bar'>('pie')
-  const items = useStoreState((s) => s.todos.items)
-  const totalCount = useStoreState((s) => s.todos.totalCount)
-  const activeCount = useStoreState((s) => s.todos.activeCount)
-  const completedCount = useStoreState((s) => s.todos.completedCount)
-  const overdueCount = useStoreState((s) => s.todos.overdueCount)
+  const items = useTodoItems()
+  const { totalCount, activeCount, completedCount, overdueCount } = useTodoStats()
 
-  const counts: Record<string, number> = {
-    active: activeCount, completed: completedCount, overdue: overdueCount,
-  }
+  const counts: Record<string, number> = { active: activeCount, completed: completedCount, overdue: overdueCount }
 
   const donutData = useMemo(() => {
-    const data = [
+    return [
       { type: 'Active', value: activeCount },
       { type: 'Completed', value: completedCount },
       { type: 'Overdue', value: overdueCount },
-    ];
-    return data.filter((d) => d.value > 0);
-  }, [activeCount, completedCount, overdueCount]);
+    ].filter((d) => d.value > 0)
+  }, [activeCount, completedCount, overdueCount])
 
   const pieConfig = {
     ...PIE_BASE,
@@ -107,7 +97,7 @@ function DashboardCharts() {
   }
 
   const completionData = useMemo(() => {
-    const data: { date: string, value: number }[] = []
+    const data: { date: string; value: number }[] = []
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
@@ -119,22 +109,17 @@ function DashboardCharts() {
     for (let i = 0; i <= 6; i++) {
       const d = new Date(monday)
       d.setDate(d.getDate() + i)
-      const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' })
-      data.push({ date: dayStr, value: 0 })
+      data.push({ date: d.toLocaleDateString('en-US', { weekday: 'short' }), value: 0 })
     }
 
-    items.forEach(item => {
+    items.forEach((item) => {
       if (item.completed) {
         const dateStr = item.completedAt || item.updatedAt || item.createdAt
         if (dateStr) {
           const itemDate = new Date(dateStr)
           itemDate.setHours(0, 0, 0, 0)
-          const diffTime = itemDate.getTime() - monday.getTime()
-          const diffDays = Math.round(diffTime / (1000 * 3600 * 24))
-
-          if (diffDays >= 0 && diffDays <= 6) {
-            data[diffDays].value += 1
-          }
+          const diffDays = Math.round((itemDate.getTime() - monday.getTime()) / (1000 * 3600 * 24))
+          if (diffDays >= 0 && diffDays <= 6) data[diffDays].value += 1
         }
       }
     })
@@ -152,21 +137,8 @@ function DashboardCharts() {
     height: 270,
     paddingInner: 0.3,
     marginRatio: 0.3,
-    scale: {
-      y: {
-        domainMax: 10,
-        tickCount: 11,
-        tickInterval: 1,
-      }
-    },
-    axis: {
-      y: {
-        gridStroke: '#94a3b8',
-        gridStrokeOpacity: 0.6,
-        gridLineDash: [8, 12],
-        gridLineWidth: 1,
-      }
-    }
+    scale: { y: { domainMax: 10, tickCount: 11, tickInterval: 1 } },
+    axis: { y: { gridStroke: '#94a3b8', gridStrokeOpacity: 0.6, gridLineDash: [8, 12], gridLineWidth: 1 } },
   }
 
   return (
@@ -215,7 +187,7 @@ function DashboardCharts() {
 
 function RecentTasksCard({ navSearch }: { navSearch: string }) {
   const navigate = useNavigate()
-  const recentTasks = useStoreState((s) => s.todos.recentTasks)
+  const recentTasks = useRecentTasks()
 
   return (
     <div className={CARD}>
@@ -250,8 +222,8 @@ function RecentTasksCard({ navSearch }: { navSearch: string }) {
 }
 
 function PriorityCard() {
-  const items = useStoreState((s) => s.todos.items)
-  const totalCount = useStoreState((s) => s.todos.totalCount)
+  const items = useTodoItems()
+  const { totalCount } = useTodoStats()
   const priorityCounts = useMemo(
     () => Object.fromEntries(PRIORITY_BARS.map(({ key }) => [key, items.filter((i) => i.priority === key).length])),
     [items]
@@ -284,7 +256,7 @@ function PriorityCard() {
 
 function DueSoonCard({ navSearch }: { navSearch: string }) {
   const navigate = useNavigate()
-  const dueSoonTasks = useStoreState((s) => s.todos.dueSoonTasks)
+  const dueSoonTasks = useDueSoonTasks()
 
   return (
     <div className={CARD}>
@@ -346,7 +318,7 @@ export default function DashboardPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <DashboardStats />
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-start">
           <div className="flex flex-col gap-4">
             <DashboardCharts />

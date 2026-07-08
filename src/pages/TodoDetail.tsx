@@ -1,16 +1,13 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useStoreState } from '../store'
+import { useStore } from '../store'
 import { ArrowLeft, Calendar, Tag, CheckCircle2, Circle, Clock, AlertCircle } from 'lucide-react'
-import type { Todo } from '../store/types'
 import { getPriorityColor } from '../utils/todoHelpers'
 
 export default function TodoDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  
-  const todo = useStoreState((state) => 
-    state.todos.items.find(item => item.id === id)
-  )
+
+  const todo = useStore((s) => s.todos.entities[id!])
 
   if (!todo) {
     return (
@@ -18,7 +15,7 @@ export default function TodoDetail() {
         <AlertCircle size={48} className="text-slate-400 mb-4 dark:text-slate-500" />
         <h2 className="text-xl font-bold text-slate-800 mb-2 dark:text-white">Task Not Found</h2>
         <p className="text-slate-500 mb-6 text-center dark:text-slate-400">The task you are looking for does not exist or has been deleted.</p>
-        <button 
+        <button
           onClick={() => navigate('/')}
           className="px-4 py-2 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors dark:bg-slate-700 dark:hover:bg-slate-600"
         >
@@ -33,7 +30,7 @@ export default function TodoDetail() {
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 flex flex-col transition-colors duration-300 dark:bg-slate-900">
       <div className="max-w-2xl mx-auto w-full">
-        <button 
+        <button
           onClick={() => navigate('/')}
           className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors mb-6 focus:outline-none focus:ring-2 focus:ring-slate-400 rounded-lg py-1 px-2 -ml-2 dark:text-slate-400 dark:hover:text-slate-200"
         >
@@ -95,7 +92,7 @@ export default function TodoDetail() {
                 </div>
               </div>
             )}
-            
+
             <div className="flex items-center gap-3 text-sm">
               <div className="p-2 bg-slate-50 text-slate-500 rounded-lg dark:bg-slate-700/50 dark:text-slate-400">
                 <Clock size={18} />

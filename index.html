@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TaskFlow — Todo Manager</title>
+    <script>
+      try {
+        const store = JSON.parse(localStorage.getItem('todo-store'));
+        document.documentElement.classList.toggle('dark', store?.state?.settings?.theme === 'dark');
+      } catch (_) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
