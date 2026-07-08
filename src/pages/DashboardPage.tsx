@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, ClipboardList, Activity, CheckCircle2, AlertTriangle, type LucideIcon } from 'lucide-react'
 import { Pie, Column } from '@ant-design/charts'
-import { useTodoStats, useTodoItems, useRecentTasks, useDueSoonTasks } from '../store'
+import { useSettings, useTodoStats, useTodoItems, useRecentTasks, useDueSoonTasks } from '../store'
 import { isOverdue } from '../utils/todoHelpers'
 import { keepParams, TABLE_KEYS, TODO_KEYS } from '../utils/urlHelpers'
 
@@ -79,6 +79,7 @@ function DashboardCharts() {
   const [chartType, setChartType] = useState<'pie' | 'bar'>('pie')
   const items = useTodoItems()
   const { totalCount, activeCount, completedCount, overdueCount } = useTodoStats()
+  const theme = useSettings().theme
 
   const counts: Record<string, number> = { active: activeCount, completed: completedCount, overdue: overdueCount }
 
@@ -127,6 +128,8 @@ function DashboardCharts() {
     return data
   }, [items])
 
+  const isDark = theme === 'dark'
+
   const barConfig = {
     data: completionData,
     xField: 'date',
@@ -138,7 +141,16 @@ function DashboardCharts() {
     paddingInner: 0.3,
     marginRatio: 0.3,
     scale: { y: { domainMax: 10, tickCount: 11, tickInterval: 1 } },
-    axis: { y: { gridStroke: '#94a3b8', gridStrokeOpacity: 0.6, gridLineDash: [8, 12], gridLineWidth: 1 } },
+    axis: {
+      x: { labelFill: isDark ? '#ffffff' : '#475569' },
+      y: { 
+        labelFill: isDark ? '#ffffff' : '#475569',
+        gridStroke: isDark ? '#334155' : '#e2e8f0', 
+        gridStrokeOpacity: 1, 
+        gridLineDash: [4, 4], 
+        gridLineWidth: 1 
+      } 
+    },
   }
 
   return (
