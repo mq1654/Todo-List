@@ -1,8 +1,11 @@
 import { useFormik } from 'formik'
 import { useMemo } from 'react'
+import { Input, Select, Button } from 'antd'
 import { useStore } from '../store'
 import { createTodoSchema } from '../schemas/todoSchema'
 import type { Todo, TodoPayload } from '../store/types'
+
+const { TextArea } = Input
 
 const EMPTY_VALUES: Partial<Todo> = {
   title: '',
@@ -13,30 +16,26 @@ const EMPTY_VALUES: Partial<Todo> = {
 
 const PRIORITIES: Todo['priority'][] = ['High', 'Medium', 'Low']
 
-interface FieldErrorProps {
-  message?: string | false
-}
-function FieldError({ message }: FieldErrorProps) {
+function FieldError({ message }: { message?: string | false }) {
   if (!message) return null
   return <p className="mt-1 text-xs text-red-500 font-medium">{message}</p>
 }
 
-interface FormInputProps {
-  id: string
+interface FormFieldProps {
   label: string
-  isRequired?: boolean
-  error?: string | false | undefined
+  required?: boolean
+  optional?: boolean
+  error?: string | false
   touched?: boolean
-  optionalText?: string
   children: React.ReactNode
 }
-function FormInput({ id, label, isRequired, error, touched, optionalText, children }: FormInputProps) {
+function FormField({ label, required, optional, error, touched, children }: FormFieldProps) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">
+      <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">
         {label}
-        {isRequired && <span className="text-red-400 ml-1">*</span>}
-        {optionalText && <span className="ml-1.5 text-xs font-normal text-slate-400 dark:text-slate-500">({optionalText})</span>}
+        {required && <span className="text-red-400 ml-1">*</span>}
+        {optional && <span className="ml-1.5 text-xs font-normal text-slate-400 dark:text-slate-500">(optional)</span>}
       </label>
       {children}
       {touched && <FieldError message={error} />}
@@ -49,6 +48,7 @@ interface TodoInputProps {
   initialValues?: Partial<Todo>
   onCancel?: () => void
 }
+
 function TodoInput({ onSubmit, initialValues, onCancel }: TodoInputProps) {
   const categories = useStore((s) => s.settings.categories)
   const resolvedInitialValues = initialValues ?? EMPTY_VALUES
@@ -61,21 +61,19 @@ function TodoInput({ onSubmit, initialValues, onCancel }: TodoInputProps) {
     initialFormattedDate = `${day}-${month}-${year}`
   }
 
-  const formikInitialValues = {
-    ...resolvedInitialValues,
-    category: resolvedInitialValues.category || '',
-    priority: resolvedInitialValues.priority || '',
-    dueDate: initialFormattedDate,
-  }
-
   const formik = useFormik({
-    initialValues: formikInitialValues,
+    initialValues: {
+      ...resolvedInitialValues,
+      category: resolvedInitialValues.category || '',
+      priority: resolvedInitialValues.priority || '',
+      dueDate: initialFormattedDate,
+    },
     validationSchema: schema,
     enableReinitialize: true,
     onSubmit: (values, { resetForm }) => {
       let isoDate = ''
       if (values.dueDate) {
-        const [day, month, year] = values.dueDate.split('-')
+        const [day, month, year] = (values.dueDate as string).split('-')
         isoDate = `${year}-${month}-${day}`
       }
       onSubmit({
@@ -91,117 +89,102 @@ function TodoInput({ onSubmit, initialValues, onCancel }: TodoInputProps) {
 
   function handleDateChange(e: React.ChangeEvent<HTMLInputElement>) {
     let val = e.target.value
-
     if (val.endsWith(' ') || val.endsWith('-')) {
       const parts = val.replace(/[\s-]$/, '').split('-')
       const lastPart = parts[parts.length - 1]
       if (lastPart && lastPart.length === 1) parts[parts.length - 1] = `0${lastPart}`
       val = parts.join('-') + '-'
     }
-
     const digits = val.replace(/[^\d-]/g, '').replace(/\D/g, '')
     let formatted = digits
     if (digits.length > 2 && digits.length <= 4) formatted = `${digits.slice(0, 2)}-${digits.slice(2)}`
     else if (digits.length > 4) formatted = `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4, 8)}`
-
     if (val.endsWith('-') && (digits.length === 2 || digits.length === 4)) formatted += '-'
-
     formik.setFieldValue('dueDate', formatted)
   }
 
-  const baseInputClass =
-    'w-full px-3.5 py-2.5 text-sm rounded-lg border bg-slate-50 text-slate-900 transition-colors outline-none focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent placeholder:text-slate-400 dark:bg-slate-900 dark:text-white dark:focus:bg-slate-900 dark:focus:ring-slate-500 dark:placeholder-slate-500'
-
-  const getInputClass = (field: keyof typeof formikInitialValues) =>
-    `${baseInputClass} ${formik.touched[field] && formik.errors[field] ? 'border-red-400 focus:ring-red-400 dark:border-red-500 dark:focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`
+  const hasError = (field: keyof typeof formik.initialValues) =>
+    !!(formik.touched[field] && formik.errors[field])
 
   return (
-    <form onSubmit={formik.handleSubmit} noValidate className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4 dark:bg-slate-800 dark:border-slate-700">
-      <FormInput id="title" label="Title" isRequired error={formik.errors.title as string} touched={formik.touched.title as boolean}>
-        <input
+    <form
+      onSubmit={formik.handleSubmit}
+      noValidate
+      className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4 dark:bg-slate-800 dark:border-slate-700"
+    >
+      <FormField label="Title" required error={formik.errors.title as string} touched={formik.touched.title as boolean}>
+        <Input
           id="title"
           name="title"
-          type="text"
-          value={formik.values.title}
+          value={formik.values.title as string}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
-          className={getInputClass('title')}
+          status={hasError('title') ? 'error' : undefined}
+          size="middle"
         />
-      </FormInput>
+      </FormField>
 
-      <FormInput id="description" label="Description" optionalText="optional" error={formik.errors.description as string} touched={formik.touched.description as boolean}>
-        <textarea
+      <FormField label="Description" optional error={formik.errors.description as string} touched={formik.touched.description as boolean}>
+        <TextArea
           id="description"
           name="description"
           rows={3}
           placeholder="Add task description..."
-          value={formik.values.description}
+          value={formik.values.description as string}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
-          className={`${getInputClass('description')} resize-none`}
+          status={hasError('description') ? 'error' : undefined}
+          style={{ resize: 'none' }}
         />
-      </FormInput>
+      </FormField>
 
       <div className="grid grid-cols-2 gap-4">
-        <FormInput id="category" label="Category" isRequired error={formik.errors.category as string} touched={formik.touched.category as boolean}>
-          <select
+        <FormField label="Category" required error={formik.errors.category as string} touched={formik.touched.category as boolean}>
+          <Select
             id="category"
-            name="category"
-            value={formik.values.category}
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            className={getInputClass('category')}
-          >
-            <option value="" disabled hidden>Select</option>
-            {categories.map((cat: string) => <option key={cat} value={cat}>{cat}</option>)}
-          </select>
-        </FormInput>
+            value={(formik.values.category as string) || undefined}
+            onChange={(val) => formik.setFieldValue('category', val)}
+            onBlur={() => formik.setFieldTouched('category', true)}
+            status={hasError('category') ? 'error' : undefined}
+            placeholder="Select"
+            style={{ width: '100%' }}
+            options={categories.map((cat: string) => ({ value: cat, label: cat }))}
+          />
+        </FormField>
 
-        <FormInput id="priority" label="Priority" isRequired error={formik.errors.priority as string} touched={formik.touched.priority as boolean}>
-          <select
+        <FormField label="Priority" required error={formik.errors.priority as string} touched={formik.touched.priority as boolean}>
+          <Select
             id="priority"
-            name="priority"
-            value={formik.values.priority}
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            className={getInputClass('priority')}
-          >
-            <option value="" disabled hidden>Select</option>
-            {PRIORITIES.map((pri) => <option key={pri} value={pri}>{pri}</option>)}
-          </select>
-        </FormInput>
+            value={(formik.values.priority as string) || undefined}
+            onChange={(val) => formik.setFieldValue('priority', val)}
+            onBlur={() => formik.setFieldTouched('priority', true)}
+            status={hasError('priority') ? 'error' : undefined}
+            placeholder="Select"
+            style={{ width: '100%' }}
+            options={PRIORITIES.map((p) => ({ value: p, label: p }))}
+          />
+        </FormField>
       </div>
 
-      <FormInput id="dueDate" label="Due Date" error={formik.errors.dueDate as string} touched={formik.touched.dueDate as boolean}>
-        <input
+      <FormField label="Due Date" error={formik.errors.dueDate as string} touched={formik.touched.dueDate as boolean}>
+        <Input
           id="dueDate"
           name="dueDate"
-          type="text"
           placeholder="DD-MM-YYYY"
           autoComplete="off"
-          value={formik.values.dueDate}
+          value={formik.values.dueDate as string}
           onChange={handleDateChange}
           onBlur={formik.handleBlur}
-          className={getInputClass('dueDate')}
+          status={hasError('dueDate') ? 'error' : undefined}
         />
-      </FormInput>
+      </FormField>
 
       <div className="flex items-center gap-3 pt-1">
-        <button
-          type="submit"
-          disabled={formik.isSubmitting}
-          className="px-4 py-2 text-sm font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 disabled:opacity-50 dark:bg-slate-700 dark:hover:bg-slate-600 dark:focus:ring-slate-500 dark:focus:ring-offset-slate-800"
-        >
+        <Button type="primary" htmlType="submit" loading={formik.isSubmitting}>
           {isEditMode ? 'Save Changes' : 'Add Task'}
-        </button>
+        </Button>
         {isEditMode && onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:focus:ring-slate-500 dark:focus:ring-offset-slate-800"
-          >
-            Cancel
-          </button>
+          <Button onClick={onCancel}>Cancel</Button>
         )}
       </div>
     </form>

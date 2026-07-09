@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, ClipboardList, Activity, CheckCircle2, AlertTriangle, type LucideIcon } from 'lucide-react'
 import { Pie, Column } from '@ant-design/charts'
-import { useSettings, useTodoStats, useTodoItems, useRecentTasks, useDueSoonTasks } from '../store'
+import { useStore, useSettings, useTodoStats, useTodoItems, useRecentTasks, useDueSoonTasks } from '../store'
 import { isOverdue } from '../utils/todoHelpers'
 import { keepParams, TABLE_KEYS, TODO_KEYS } from '../utils/urlHelpers'
 
@@ -35,7 +35,6 @@ const TASK_STATUS_CLS: Record<string, string> = {
 
 const CARD = 'bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm'
 const CAT_BADGE = 'text-xs px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded flex-shrink-0'
-const CIRCLE = 'w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-600 flex-shrink-0'
 
 const PIE_BASE = {
   angleField: 'value',
@@ -200,6 +199,7 @@ function DashboardCharts() {
 function RecentTasksCard({ navSearch }: { navSearch: string }) {
   const navigate = useNavigate()
   const recentTasks = useRecentTasks()
+  const toggleStatus = useStore((s) => s.todos.toggleStatus)
 
   return (
     <div className={CARD}>
@@ -217,7 +217,15 @@ function RecentTasksCard({ navSearch }: { navSearch: string }) {
             const status = task.completed ? 'Completed' : isOverdue(task.dueDate, task.completed) ? 'Overdue' : 'Active'
             return (
               <div key={task.id} className="flex items-center gap-3 py-3">
-                <div className={CIRCLE} />
+                <button
+                  onClick={() => toggleStatus(task.id)}
+                  title={task.completed ? 'Mark as active' : 'Mark as completed'}
+                  className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all hover:scale-110 ${
+                    task.completed
+                      ? 'bg-emerald-500 border-emerald-500'
+                      : 'border-slate-300 dark:border-slate-600 hover:border-emerald-400'
+                  }`}
+                />
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <p className={`text-sm font-medium truncate ${task.completed ? 'line-through text-slate-400' : 'text-slate-800 dark:text-white'}`}>{task.title}</p>
                   {task.category && <span className={CAT_BADGE}>{task.category}</span>}
@@ -269,6 +277,7 @@ function PriorityCard() {
 function DueSoonCard({ navSearch }: { navSearch: string }) {
   const navigate = useNavigate()
   const dueSoonTasks = useDueSoonTasks()
+  const toggleStatus = useStore((s) => s.todos.toggleStatus)
 
   return (
     <div className={CARD}>
@@ -289,7 +298,11 @@ function DueSoonCard({ navSearch }: { navSearch: string }) {
             const dayLabel = daysLeft === 0 ? 'Today' : `${daysLeft}d left`
             return (
               <div key={id} className="flex items-center gap-3 py-3">
-                <div className={CIRCLE} />
+                <button
+                  onClick={() => toggleStatus(id)}
+                  title="Mark as completed"
+                  className="w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all hover:scale-110 border-slate-300 dark:border-slate-600 hover:border-emerald-400"
+                />
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-800 dark:text-white truncate">{title}</p>
                   {category && <span className={CAT_BADGE}>{category}</span>}
