@@ -47,6 +47,7 @@ interface TodoInputProps {
   onSubmit: (values: TodoPayload) => void
   initialValues?: Partial<Todo>
   onCancel?: () => void
+  columnId?: string
 }
 
 function TodoInput({ onSubmit, initialValues, onCancel }: TodoInputProps) {

@@ -6,8 +6,9 @@ export interface Todo {
   priority: 'High' | 'Medium' | 'Low'
   dueDate: string
   completed: boolean
+  columnId: string
   createdAt: string
-  completedAt?: string
+  statusChangedAt?: string
   updatedAt?: string
 }
 
@@ -17,4 +18,11 @@ export interface TodoPayload {
   category: string
   priority: 'High' | 'Medium' | 'Low'
   dueDate: string | null
+}
+
+export interface Column {
+  id: string
+  name: string
+  isDoneColumn: boolean
+  createdAt: string
 }

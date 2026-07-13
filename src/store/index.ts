@@ -3,7 +3,36 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import { isOverdue } from '../utils/todoHelpers'
-import type { Todo, TodoPayload } from './types'
+import type { Todo, TodoPayload, Column } from './types'
+
+const DEFAULT_COLUMNS: Column[] = [
+  { id: 'col-todo', name: 'Todo', isDoneColumn: false, createdAt: new Date().toISOString() },
+  { id: 'col-in-progress', name: 'In Progress', isDoneColumn: false, createdAt: new Date().toISOString() },
+  { id: 'col-done', name: 'Done', isDoneColumn: true, createdAt: new Date().toISOString() },
+]
+
+interface TodoSlice {
+  entities: Record<string, Todo>
+  allIds: string[]
+  add: (payload: TodoPayload, columnId?: string) => void
+  remove: (id: string) => void
+  deleteMultiple: (ids: string[]) => void
+  update: (payload: TodoPayload & { id: string }) => void
+  toggleCompleted: (id: string) => void
+  moveTodoToColumn: (todoId: string, columnId: string) => void
+  migrateCategory: (payload: { from: string; to: string }) => void
+  reorderTodo: (payload: { sourceId: string; destinationId: string; isMovingDown: boolean }) => void
+}
+
+interface BoardSlice {
+  columnIds: string[]
+  columnEntities: Record<string, Column>
+  addColumn: (name: string) => void
+  removeColumn: (id: string) => void
+  renameColumn: (id: string, name: string) => void
+  reorderColumn: (sourceId: string, destinationId: string) => void
+  setDoneColumn: (id: string) => void
+}
 
 interface SettingsSlice {
   theme: string
@@ -14,22 +43,12 @@ interface SettingsSlice {
   renameCategory: (payload: { oldName: string; newName: string }) => void
 }
 
-interface TodoSlice {
-  entities: Record<string, Todo>
-  allIds: string[]
-  add: (payload: TodoPayload) => void
-  remove: (id: string) => void
-  deleteMultiple: (ids: string[]) => void
-  update: (payload: TodoPayload & { id: string }) => void
-  toggleStatus: (id: string) => void
-  migrateCategory: (payload: { from: string; to: string }) => void
-  reorderTodo: (payload: { sourceId: string; destinationId: string; isMovingDown: boolean }) => void
-}
-
 export type AppStore = {
   todos: TodoSlice
+  board: BoardSlice
   settings: SettingsSlice
 }
+
 
 
 export const useStore = create<AppStore>()(
@@ -39,8 +58,10 @@ export const useStore = create<AppStore>()(
         entities: {},
         allIds: [],
 
-        add: (payload) => set((s) => {
+        add: (payload, columnId) => set((s) => {
           const id = crypto.randomUUID()
+          const targetCol = columnId || s.board.columnIds[0]
+          const isDone = s.board.columnEntities[targetCol]?.isDoneColumn ?? false
           s.todos.entities[id] = {
             id,
             title: payload.title.trim(),
@@ -48,7 +69,8 @@ export const useStore = create<AppStore>()(
             category: payload.category,
             priority: payload.priority,
             dueDate: payload.dueDate ?? '',
-            completed: false,
+            completed: isDone,
+            columnId: targetCol,
             createdAt: new Date().toISOString(),
           }
           s.todos.allIds.unshift(id)
@@ -76,12 +98,21 @@ export const useStore = create<AppStore>()(
           item.updatedAt = new Date().toISOString()
         }),
 
-        toggleStatus: (id) => set((s) => {
+        toggleCompleted: (id) => set((s) => {
           const item = s.todos.entities[id]
-          if (!item) return
-          item.completed = !item.completed
-          if (item.completed) item.completedAt = new Date().toISOString()
-          else delete item.completedAt
+          if (item) {
+            item.completed = !item.completed
+            item.statusChangedAt = new Date().toISOString()
+          }
+        }),
+
+        moveTodoToColumn: (todoId, columnId) => set((s) => {
+          const item = s.todos.entities[todoId]
+          const col = s.board.columnEntities[columnId]
+          if (!item || !col) return
+          item.columnId = columnId
+          item.completed = col.isDoneColumn
+          item.statusChangedAt = new Date().toISOString()
         }),
 
         migrateCategory: ({ from, to }) => set((s) => {
@@ -102,6 +133,68 @@ export const useStore = create<AppStore>()(
         }),
       },
 
+      board: {
+        columnIds: DEFAULT_COLUMNS.map((c) => c.id),
+        columnEntities: Object.fromEntries(DEFAULT_COLUMNS.map((c) => [c.id, c])),
+
+        addColumn: (name) => set((s) => {
+          const id = crypto.randomUUID()
+          s.board.columnEntities[id] = {
+            id,
+            name: name.trim(),
+            isDoneColumn: false,
+            createdAt: new Date().toISOString(),
+          }
+          s.board.columnIds.push(id)
+        }),
+
+        removeColumn: (id) => set((s) => {
+          const fallback = s.board.columnIds.find((cid) => cid !== id)
+          if (!fallback) return
+          s.todos.allIds.forEach((tid) => {
+            const todo = s.todos.entities[tid]
+            if (todo?.columnId === id) {
+              todo.columnId = fallback
+              todo.completed = s.board.columnEntities[fallback]?.isDoneColumn ?? false
+              todo.statusChangedAt = new Date().toISOString()
+            }
+          })
+          delete s.board.columnEntities[id]
+          s.board.columnIds = s.board.columnIds.filter((cid) => cid !== id)
+        }),
+
+        renameColumn: (id, name) => set((s) => {
+          if (s.board.columnEntities[id]) {
+            s.board.columnEntities[id].name = name.trim()
+          }
+        }),
+
+        reorderColumn: (sourceId, destinationId) => set((s) => {
+          const srcIdx = s.board.columnIds.indexOf(sourceId)
+          const dstIdx = s.board.columnIds.indexOf(destinationId)
+          if (srcIdx === -1 || dstIdx === -1) return
+          const [removed] = s.board.columnIds.splice(srcIdx, 1)
+          s.board.columnIds.splice(dstIdx, 0, removed)
+        }),
+
+        setDoneColumn: (id) => set((s) => {
+          Object.values(s.board.columnEntities).forEach((col) => {
+            col.isDoneColumn = col.id === id
+          })
+          s.todos.allIds.forEach((tid) => {
+            const todo = s.todos.entities[tid]
+            if (!todo) return
+            const col = s.board.columnEntities[todo.columnId]
+            const wasDone = todo.completed
+            const nowDone = col?.isDoneColumn ?? false
+            if (wasDone !== nowDone) {
+              todo.completed = nowDone
+              todo.statusChangedAt = new Date().toISOString()
+            }
+          })
+        }),
+      },
+
       settings: {
         theme: 'light',
         categories: ['Work', 'Personal', 'Learning'],
@@ -119,6 +212,18 @@ export const useStore = create<AppStore>()(
 
         removeCategory: (cat) => set((s) => {
           s.settings.categories = s.settings.categories.filter((c) => c !== cat)
+          s.todos.allIds.forEach((id) => {
+            const todo = s.todos.entities[id]
+            if (todo && todo.category) {
+              const cats = Array.isArray(todo.category)
+                ? todo.category
+                : todo.category.toString().split(',').map((c) => c.trim())
+              if (cats.includes(cat)) {
+                const newCats = cats.filter((c) => c !== cat)
+                todo.category = newCats.length === 0 ? 'None' : newCats.join(', ')
+              }
+            }
+          })
         }),
 
         renameCategory: ({ oldName, newName }) => set((s) => {
@@ -131,27 +236,56 @@ export const useStore = create<AppStore>()(
     })),
     {
       name: 'todo-store',
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         todos: { entities: s.todos.entities, allIds: s.todos.allIds },
+        board: { columnIds: s.board.columnIds, columnEntities: s.board.columnEntities },
         settings: { theme: s.settings.theme, categories: s.settings.categories },
       }),
-      merge: (persistedState: any, currentState: AppStore) => ({
-        ...currentState,
-        todos: {
-          ...currentState.todos,
-          ...persistedState.todos,
-        },
-        settings: {
-          ...currentState.settings,
-          ...persistedState.settings,
-        },
-      }),
+      migrate: (persisted: unknown, version: number) => {
+        const p = persisted as { board?: unknown; todos?: { entities?: Record<string, Record<string, unknown>> } }
+        if (version < 2) {
+          const defaultCols = DEFAULT_COLUMNS
+          const doneColId = defaultCols.find((c) => c.isDoneColumn)!.id
+          const todoColId = defaultCols[0].id
+
+          if (!p.board) {
+            p.board = {
+              columnIds: defaultCols.map((c) => c.id),
+              columnEntities: Object.fromEntries(defaultCols.map((c) => [c.id, c])),
+            }
+          }
+
+          if (p.todos?.entities) {
+            Object.values(p.todos.entities).forEach((todo) => {
+              if (!todo['columnId']) {
+                todo['columnId'] = todo['completed'] ? doneColId : todoColId
+              }
+              if (todo['completedAt']) {
+                todo['statusChangedAt'] = todo['completedAt']
+                delete todo['completedAt']
+              }
+            })
+          }
+        }
+        return p as unknown
+      },
+      merge: (persistedState: unknown, currentState: AppStore) => {
+        const p = persistedState as Partial<AppStore>
+        return {
+          ...currentState,
+          todos: { ...currentState.todos, ...p.todos },
+          board: { ...currentState.board, ...p.board },
+          settings: { ...currentState.settings, ...p.settings },
+        }
+      },
     }
   )
 )
 
 export const useTodos = () => useStore((s) => s.todos)
+export const useBoard = () => useStore((s) => s.board)
 export const useSettings = () => useStore((s) => s.settings)
 
 export const useTodoItems = () => {
@@ -160,6 +294,24 @@ export const useTodoItems = () => {
   return useMemo(
     () => allIds.map((id) => entities[id]).filter(Boolean),
     [allIds, entities]
+  )
+}
+
+export const useColumnTodos = (columnId: string) => {
+  const allIds = useStore((s) => s.todos.allIds)
+  const entities = useStore((s) => s.todos.entities)
+  return useMemo(
+    () => allIds.filter((id) => entities[id]?.columnId === columnId),
+    [allIds, entities, columnId]
+  )
+}
+
+export const useBoardColumns = () => {
+  const columnIds = useStore((s) => s.board.columnIds)
+  const columnEntities = useStore((s) => s.board.columnEntities)
+  return useMemo(
+    () => columnIds.map((id) => columnEntities[id]).filter(Boolean),
+    [columnIds, columnEntities]
   )
 }
 
@@ -175,7 +327,7 @@ export const useTodoStats = () => {
 
 export const useRecentTasks = () => {
   const items = useTodoItems()
-  return useMemo(() => 
+  return useMemo(() =>
     [...items]
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 3),

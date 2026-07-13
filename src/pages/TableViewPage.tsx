@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback, useDeferredValue } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { useStore, useTodoItems } from '../store'
-import { Pagination, Select, Tooltip, Modal } from 'antd'
-import { ArrowLeft, Search, Trash2, CheckCircle2, Circle, X, Download, AlertCircle } from 'lucide-react'
+import { useStore, useTodoItems, useBoardColumns } from '../store'
+import { Select, Tooltip, Modal, Table, Input, Button, Typography, Card } from 'antd'
+import { ArrowLeft, Search, Trash2, CheckCircle2, Circle, Download, AlertCircle } from 'lucide-react'
 import type { Todo } from '../store/types'
 import { getPriorityColor, isOverdue, exportTodosToCSV } from '../utils/todoHelpers'
 import { keepParams, TODO_KEYS } from '../utils/urlHelpers'
@@ -67,7 +67,8 @@ function EmptyDash() {
 
 function formatDate(d: string): string {
   if (!d) return ''
-  const [y, m, day] = d.split('-')
+  const datePart = d.split('T')[0].split(' ')[0]
+  const [y, m, day] = datePart.split('-')
   return `${day}/${m}/${y}`
 }
 
@@ -77,10 +78,11 @@ interface TableFilters {
   categoryFilter: string
   priorityFilter: string
   statusFilter:   string
+  columnFilter:   string
   currentPage:    number
 }
 
-function useTableUrlSync(categories: string[]) {
+function useTableUrlSync(categories: string[], columnIds: string[]) {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const filters = useMemo<TableFilters>(() => {
@@ -88,6 +90,7 @@ function useTableUrlSync(categories: string[]) {
     const cat  = searchParams.get('tCat') ?? 'all'
     const pri  = searchParams.get('tPri') ?? 'all'
     const sta  = searchParams.get('tSta') ?? 'all'
+    const col  = searchParams.get('tCol') ?? 'all'
 
     return {
       globalSearch:   searchParams.get('tQ')    ?? '',
@@ -95,9 +98,10 @@ function useTableUrlSync(categories: string[]) {
       categoryFilter: (categories.includes(cat) || cat === 'all') ? cat : 'all',
       priorityFilter: VALID_PRIORITIES.includes(pri) ? pri : 'all',
       statusFilter:   VALID_STATUSES.includes(sta)   ? sta : 'all',
+      columnFilter:   (columnIds.includes(col) || col === 'all') ? col : 'all',
       currentPage:    Number.isFinite(page) && page > 0 ? page : 1,
     }
-  }, [searchParams, categories])
+  }, [searchParams, categories, columnIds])
 
   const setFilters = (patch: Partial<TableFilters>) => {
     const nextFilters = { ...filters, ...patch }
@@ -111,6 +115,7 @@ function useTableUrlSync(categories: string[]) {
     set('tCat',   nextFilters.categoryFilter, 'all')
     set('tPri',   nextFilters.priorityFilter, 'all')
     set('tSta',   nextFilters.statusFilter,   'all')
+    set('tCol',   nextFilters.columnFilter,   'all')
 
     if (nextFilters.currentPage > 1) params.set('tPage', String(nextFilters.currentPage))
     else params.delete('tPage')
@@ -125,6 +130,7 @@ function useTableUrlSync(categories: string[]) {
       categoryFilter: 'all',
       priorityFilter: 'all',
       statusFilter:   'all',
+      columnFilter:   'all',
       currentPage:    1,
     })
   }
@@ -140,10 +146,17 @@ export default function TableViewPage() {
   const categories     = useStore((s) => s.settings.categories)
   const remove         = useStore((s) => s.todos.remove)
   const deleteMultiple = useStore((s) => s.todos.deleteMultiple)
-  const toggleStatus   = useStore((s) => s.todos.toggleStatus)
+  const moveTodoToColumn = useStore((s) => s.todos.moveTodoToColumn)
+  const columnsData        = useBoardColumns()
+  
+  const columnIds = useMemo(() => columnsData.map((c) => c.id), [columnsData])
+  const columnNames = useMemo(
+    () => Object.fromEntries(columnsData.map((c) => [c.id, c.name])),
+    [columnsData]
+  )
 
-  const { filters, setFilters, clearAllFilters } = useTableUrlSync(categories)
-  const { globalSearch, titleSearch, categoryFilter, priorityFilter, statusFilter, currentPage } = filters
+  const { filters, setFilters, clearAllFilters } = useTableUrlSync(categories, columnIds)
+  const { globalSearch, titleSearch, categoryFilter, priorityFilter, statusFilter, columnFilter, currentPage } = filters
 
   const deferredGlobalSearch = useDeferredValue(globalSearch)
   const deferredTitleSearch  = useDeferredValue(titleSearch)
@@ -157,59 +170,46 @@ export default function TableViewPage() {
     ...categories.map((c) => ({ value: c, label: c })),
   ], [categories])
 
+  const columnOptions = useMemo(() => [
+    { value: 'all', label: 'All Columns' },
+    ...columnsData.map((c) => ({ value: c.id, label: c.name })),
+  ], [columnsData])
+
   const filteredData = useMemo(() => {
     const term      = deferredGlobalSearch.toLowerCase().trim()
     const titleTerm = deferredTitleSearch.toLowerCase().trim()
 
     return items.filter((item) => {
+      const itemCats = Array.isArray(item.category)
+        ? item.category
+        : (item.category || '').toString().split(',').map((c) => c.trim())
+
       if (term) {
+        const colName = (columnNames[item.columnId] ?? '').toLowerCase()
+        const catStr = itemCats.join(', ').toLowerCase()
         const hit =
           item.title.toLowerCase().includes(term)    ||
-          item.category.toLowerCase().includes(term) ||
+          catStr.includes(term)                      ||
           item.priority.toLowerCase().includes(term) ||
           item.dueDate?.includes(term)               ||
+          colName.includes(term)                     ||
           (item.completed ? 'completed' : 'active').includes(term)
         if (!hit) return false
       }
       if (titleTerm && !item.title.toLowerCase().includes(titleTerm)) return false
-      if (categoryFilter !== 'all' && item.category !== categoryFilter) return false
+      if (categoryFilter !== 'all' && !itemCats.includes(categoryFilter)) return false
       if (priorityFilter !== 'all' && item.priority !== priorityFilter) return false
+      if (columnFilter !== 'all' && item.columnId !== columnFilter) return false
       if (statusFilter === 'active'    && (item.completed || isOverdue(item.dueDate, item.completed))) return false
       if (statusFilter === 'completed' && !item.completed) return false
       if (statusFilter === 'overdue'   && !isOverdue(item.dueDate, item.completed)) return false
       return true
     })
-  }, [items, deferredGlobalSearch, deferredTitleSearch, categoryFilter, priorityFilter, statusFilter])
+  }, [items, deferredGlobalSearch, deferredTitleSearch, categoryFilter, priorityFilter, statusFilter, columnFilter, columnNames])
 
   const totalFiltered = filteredData.length
-
-  const pagedData = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE
-    return filteredData.slice(start, start + PAGE_SIZE)
-  }, [filteredData, currentPage])
-
-  const allPageSelected     = pagedData.length > 0 && pagedData.every((r) => selectedIds.has(r.id))
-  const somePageSelected    = pagedData.some((r) => selectedIds.has(r.id)) && !allPageSelected
   const allFilteredSelected = selectedIds.size === totalFiltered && totalFiltered > 0
   const deleteBtnLabel      = allFilteredSelected ? 'Delete All' : `Delete (${selectedIds.size})`
-
-  const toggleSelectAll = useCallback(() => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (allPageSelected) pagedData.forEach((r) => next.delete(r.id))
-      else                 pagedData.forEach((r) => next.add(r.id))
-      return next
-    })
-  }, [allPageSelected, pagedData])
-
-  const toggleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
 
   const clearSelection  = useCallback(() => setSelectedIds(new Set()), [])
 
@@ -229,305 +229,258 @@ export default function TableViewPage() {
 
   const hasActiveFilters = !!(
     globalSearch || titleSearch ||
-    categoryFilter !== 'all' || priorityFilter !== 'all' || statusFilter !== 'all'
+    categoryFilter !== 'all' || priorityFilter !== 'all' || statusFilter !== 'all' || columnFilter !== 'all'
   )
 
-  const showingStart = (currentPage - 1) * PAGE_SIZE + 1
-  const showingEnd   = Math.min(currentPage * PAGE_SIZE, totalFiltered)
+  const columns = [
+    {
+      title: (
+        <div className="space-y-2">
+          <div>Title</div>
+          <Input
+            placeholder="Search title..."
+            value={titleSearch}
+            onChange={(e) => setFilters({ titleSearch: e.target.value, currentPage: 1 })}
+            allowClear
+            size="small"
+          />
+        </div>
+      ),
+      dataIndex: 'title',
+      key: 'title',
+      render: (text: string, item: Todo) => (
+        <Button
+          type="link"
+          onClick={() => navigate(`/todoDetail/${item.id}`)}
+          className={`p-0 h-auto text-left font-medium ${item.completed ? 'line-through !text-slate-400 dark:!text-slate-500' : '!text-slate-900 dark:!text-white'}`}
+        >
+          {text}
+        </Button>
+      ),
+    },
+    {
+      title: (
+        <div className="space-y-2">
+          <div>Category</div>
+          <Select 
+            size="small" 
+            value={categoryFilter} 
+            onChange={(v) => setFilters({ categoryFilter: v, currentPage: 1 })} 
+            options={categoryOptions} 
+            className="w-full min-w-[100px]" 
+            popupMatchSelectWidth={false} 
+          />
+        </div>
+      ),
+      dataIndex: 'category',
+      key: 'category',
+      render: (category: string | string[]) => {
+        const catStr = Array.isArray(category) ? category.join(', ') : (category || '')
+        return <span className="text-slate-900 dark:text-white text-sm">{catStr || <EmptyDash />}</span>
+      },
+    },
+    {
+      title: (
+        <div className="space-y-2">
+          <div>Priority</div>
+          <Select 
+            size="small" 
+            value={priorityFilter} 
+            onChange={(v) => setFilters({ priorityFilter: v, currentPage: 1 })} 
+            options={PRIORITY_OPTIONS} 
+            className="w-full min-w-[90px]" 
+            popupMatchSelectWidth={false} 
+          />
+        </div>
+      ),
+      dataIndex: 'priority',
+      key: 'priority',
+      render: (priority: Todo['priority']) => <PriorityBadge priority={priority} />,
+    },
+    {
+      title: (
+        <div className="space-y-2">
+          <div>Column</div>
+          <Select 
+            size="small" 
+            value={columnFilter} 
+            onChange={(v) => setFilters({ columnFilter: v, currentPage: 1 })} 
+            options={columnOptions} 
+            className="w-full min-w-[120px]" 
+            popupMatchSelectWidth={false} 
+          />
+        </div>
+      ),
+      key: 'columnId',
+      render: (_: unknown, item: Todo) => (
+        <Select
+          size="small"
+          value={item.columnId}
+          onChange={(colId) => moveTodoToColumn(item.id, colId)}
+          options={columnsData.map((c) => ({ value: c.id, label: c.name }))}
+          className="w-full min-w-[120px]"
+          popupMatchSelectWidth={false}
+        />
+      ),
+    },
+    {
+      title: (
+        <div className="space-y-2">
+          <div>Status</div>
+          <Select 
+            size="small" 
+            value={statusFilter} 
+            onChange={(v) => setFilters({ statusFilter: v, currentPage: 1 })} 
+            options={STATUS_OPTIONS} 
+            className="w-full min-w-[100px]" 
+            popupMatchSelectWidth={false} 
+          />
+        </div>
+      ),
+      key: 'status',
+      render: (_: unknown, item: Todo) => <StatusBadge completed={item.completed} overdue={isOverdue(item.dueDate, item.completed)} />,
+    },
+    {
+      title: <div className="mt-7">Due Date</div>,
+      dataIndex: 'dueDate',
+      key: 'dueDate',
+      render: (dueDate: string) => <span className="text-slate-900 dark:text-white text-sm">{formatDate(dueDate) || <EmptyDash />}</span>,
+    },
+    {
+      title: <div className="mt-7 text-right">Actions</div>,
+      key: 'actions',
+      align: 'right' as const,
+      render: (_: unknown, item: Todo) => (
+        <Tooltip title="Delete">
+          <Button
+            type="text"
+            danger
+            onClick={() => setDeleteTargetId(item.id)}
+            className="flex items-center justify-center p-0 w-8 h-8 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors dark:hover:bg-red-900/20 dark:hover:text-red-400 ml-auto"
+            icon={<Trash2 size={14} />}
+          />
+        </Tooltip>
+      ),
+    },
+  ]
+
+  const rowSelection = {
+    selectedRowKeys: Array.from(selectedIds),
+    onChange: (newSelectedRowKeys: React.Key[]) => {
+      setSelectedIds(new Set(newSelectedRowKeys as string[]))
+    },
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 transition-colors duration-300 dark:bg-slate-900">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 dark:bg-slate-800 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
-          <button
+          <Button
+            type="text"
             onClick={() => navigate('/' + keepParams(location.search, TODO_KEYS))}
-            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:text-white"
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:text-white p-0 h-auto bg-transparent"
+            icon={<ArrowLeft size={16} />}
           >
-            <ArrowLeft size={16} />
             Back
-          </button>
+          </Button>
           <span className="text-slate-300 dark:text-slate-600 select-none">|</span>
-          <h1 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight uppercase">Table View</h1>
+          <Typography.Title level={1} className="!text-base font-bold text-slate-900 dark:text-white tracking-tight uppercase mb-0">Table View</Typography.Title>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="relative flex-1 min-w-[220px] max-w-xs">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
+            <Input
+              prefix={<Search size={15} className="text-slate-400" />}
               placeholder="Search all columns..."
               value={globalSearch}
-              onChange={(e) => { setFilters({ globalSearch: e.target.value, currentPage: 1 }) }}
-              className="w-full pl-8 pr-8 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-slate-500 dark:placeholder-slate-500"
+              onChange={(e) => setFilters({ globalSearch: e.target.value, currentPage: 1 })}
+              allowClear
+              className="py-1.5"
             />
-            {globalSearch && (
-              <button
-                onClick={() => { setFilters({ globalSearch: '', currentPage: 1 }) }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-              >
-                <X size={13} />
-              </button>
-            )}
           </div>
 
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
               <>
-                <button
+                <Button
+                  danger
+                  type="primary"
                   onClick={() => setBulkDeleteOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
+                  className="flex items-center gap-1.5 text-xs font-semibold"
+                  icon={<Trash2 size={13} />}
                 >
-                  <Trash2 size={13} />
                   {deleteBtnLabel}
-                </button>
+                </Button>
 
-                <button
+                <Button
                   onClick={() => {
                     const selected = filteredData.filter((item) => selectedIds.has(item.id))
-                    exportTodosToCSV(selected, `todos-selected-${Date.now()}.csv`)
+                    exportTodosToCSV(selected, columnNames, `todos-selected-${Date.now()}.csv`)
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  className="flex items-center gap-1.5 text-xs font-semibold"
+                  icon={<Download size={13} />}
                 >
-                  <Download size={13} />
                   Export CSV
-                </button>
+                </Button>
 
-                <button
+                <Button
+                  type="default"
                   onClick={clearSelection}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                  title="Clear selection"
+                  className="text-xs font-medium"
                 >
-                  <X size={14} />
-                </button>
+                  Clear Selection
+                </Button>
               </>
             )}
 
             {selectedIds.size === 0 && (
               <div className="flex items-center gap-2">
                 {hasActiveFilters && (
-                  <button
+                  <Button
                     onClick={clearAllFilters}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400 dark:hover:text-white"
+                    className="flex items-center gap-1.5 text-xs font-medium"
                   >
-                    <X size={13} />
                     Clear all filters
-                  </button>
+                  </Button>
                 )}
                 {filteredData.length > 0 && (
-                  <button
-                    onClick={() => exportTodosToCSV(filteredData, `todos-${Date.now()}.csv`)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  <Button
+                    onClick={() => exportTodosToCSV(filteredData, columnNames, `todos-${Date.now()}.csv`)}
+                    className="flex items-center gap-1.5 text-xs font-semibold"
+                    icon={<Download size={13} />}
                   >
-                    <Download size={13} />
                     Export CSV
-                  </button>
+                  </Button>
                 )}
               </div>
             )}
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden dark:bg-slate-800 dark:border-slate-700">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <th className="w-10 px-4 py-3">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 rounded border-slate-300 accent-slate-900 cursor-pointer dark:border-slate-600 dark:accent-slate-400"
-                      checked={allPageSelected}
-                      ref={(el) => { if (el) el.indeterminate = somePageSelected }}
-                      onChange={toggleSelectAll}
-                    />
-                  </th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Title</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Category</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Priority</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Status</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Due Date</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-200">Actions</th>
-                </tr>
-
-                <tr className="border-b border-slate-100 bg-slate-50/60 dark:bg-slate-900/30 dark:border-slate-700/60">
-                  <td className="px-4 py-2" />
-
-                  <td className="px-4 py-2">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Search title..."
-                        value={titleSearch}
-                        onChange={(e) => { setFilters({ titleSearch: e.target.value, currentPage: 1 }) }}
-                        className="w-full pl-2 pr-6 py-1 text-xs rounded border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 outline-none focus:ring-1 focus:ring-slate-400 transition-colors dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder-slate-500 dark:focus:ring-slate-500"
-                      />
-                      {titleSearch && (
-                        <button
-                          onClick={() => { setFilters({ titleSearch: '', currentPage: 1 }) }}
-                          className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                        >
-                          <X size={11} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-
-                  <td className="px-4 py-2">
-                    <Select size="small" value={categoryFilter} onChange={(v) => { setFilters({ categoryFilter: v, currentPage: 1 }) }} options={categoryOptions} className="w-full" popupMatchSelectWidth={false} />
-                  </td>
-
-                  <td className="px-4 py-2">
-                    <Select size="small" value={priorityFilter} onChange={(v) => { setFilters({ priorityFilter: v, currentPage: 1 }) }} options={PRIORITY_OPTIONS} className="w-full" popupMatchSelectWidth={false} />
-                  </td>
-
-                  <td className="px-4 py-2">
-                    <Select size="small" value={statusFilter} onChange={(v) => { setFilters({ statusFilter: v, currentPage: 1 }) }} options={STATUS_OPTIONS} className="w-full" popupMatchSelectWidth={false} />
-                  </td>
-
-                  <td className="px-4 py-2" />
-                  <td className="px-4 py-2" />
-                </tr>
-              </thead>
-
-              <tbody>
-                {pagedData.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center text-sm text-slate-400 dark:text-slate-500">
-                      No tasks found
-                    </td>
-                  </tr>
-                ) : (
-                  pagedData.map((item, idx) => {
-                    const isSelected    = selectedIds.has(item.id)
-                    const formattedDate = formatDate(item.dueDate)
-
-                    return (
-                      <tr
-                        key={item.id}
-                        className={[
-                          'border-b border-slate-100 dark:border-slate-700/60 transition-colors',
-                          isSelected
-                            ? 'bg-slate-100 dark:bg-slate-700/40'
-                            : idx % 2 === 1
-                              ? 'bg-slate-50/50 dark:bg-slate-900/20 hover:bg-slate-50 dark:hover:bg-slate-700/20'
-                              : 'hover:bg-slate-50 dark:hover:bg-slate-700/20',
-                        ].join(' ')}
-                      >
-                        <td className="px-4 py-3">
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 rounded border-slate-300 accent-slate-900 cursor-pointer dark:border-slate-600 dark:accent-slate-400"
-                            checked={isSelected}
-                            onChange={() => toggleSelect(item.id)}
-                          />
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => navigate(`/todoDetail/${item.id}`)}
-                            className={[
-                              'text-left text-sm font-medium hover:underline transition-colors',
-                              item.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white',
-                            ].join(' ')}
-                          >
-                            {item.title}
-                          </button>
-                        </td>
-
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-sm">
-                          {item.category || <EmptyDash />}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <PriorityBadge priority={item.priority} />
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <button onClick={() => toggleStatus(item.id)} title="Click to toggle status">
-                            <StatusBadge completed={item.completed} overdue={isOverdue(item.dueDate, item.completed)} />
-                          </button>
-                        </td>
-
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-sm">
-                          {formattedDate || <EmptyDash />}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-1">
-                            <Tooltip title="Delete">
-                              <button
-                                onClick={() => setDeleteTargetId(item.id)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors dark:hover:bg-red-900/20 dark:hover:text-red-400"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </Tooltip>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-700">
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {totalFiltered === 0 ? (
-                'No tasks'
-              ) : totalFiltered <= PAGE_SIZE ? (
-                <>Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{totalFiltered}</span> task{totalFiltered !== 1 ? 's' : ''}</>
-              ) : (
-                <>Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{showingStart}–{showingEnd}</span> of <span className="font-semibold text-slate-700 dark:text-slate-200">{totalFiltered}</span> tasks</>
-              )}
-            </p>
-
-            {totalFiltered > PAGE_SIZE && (
-              <Pagination
-                current={currentPage}
-                total={totalFiltered}
-                pageSize={PAGE_SIZE}
-                onChange={(page) => { setFilters({ currentPage: page }); clearSelection() }}
-                showSizeChanger={false}
-                size="small"
-                itemRender={(page, type, originalElement) => {
-                  if (type === 'prev') {
-                    if (currentPage === 1) return <span className="hidden" />
-                    return (
-                      <button className="px-2 py-1 text-xs !text-slate-500 dark:!text-slate-400 hover:!text-slate-900 dark:hover:!text-white transition-colors cursor-pointer focus:outline-none">
-                        ‹ Previous
-                      </button>
-                    )
-                  }
-                  if (type === 'next') {
-                    return (
-                      <button className="px-2 py-1 text-xs !text-slate-500 dark:!text-slate-400 hover:!text-slate-900 dark:hover:!text-white transition-colors cursor-pointer focus:outline-none">
-                        Next ›
-                      </button>
-                    )
-                  }
-                  if (type === 'page') {
-                    const isActive = page === currentPage
-                    return (
-                      <button className={[
-                        'w-7 h-7 flex items-center justify-center text-xs transition-all cursor-pointer focus:outline-none',
-                        isActive
-                          ? 'font-bold text-slate-900 dark:text-white underline underline-offset-4 decoration-2'
-                          : 'font-medium text-slate-500 dark:text-slate-400 hover:font-semibold hover:text-slate-800 dark:hover:text-slate-200',
-                      ].join(' ')}>
-                        {page}
-                      </button>
-                    )
-                  }
-                  return originalElement
-                }}
-              />
-            )}
-          </div>
-        </div>
+        <Card styles={{ body: { padding: 0 } }} className="shadow-sm border-slate-200 overflow-hidden dark:border-slate-700">
+          <Table
+            rowSelection={rowSelection}
+            columns={columns}
+            dataSource={filteredData}
+            rowKey="id"
+            pagination={{
+              current: currentPage,
+              pageSize: PAGE_SIZE,
+              total: totalFiltered,
+              onChange: (page) => { setFilters({ currentPage: page }); clearSelection() },
+              showSizeChanger: false,
+              size: 'small',
+              showTotal: (total, range) => `Showing ${range[0]}-${range[1]} of ${total} tasks`,
+            }}
+            rowClassName={(record, index) => 
+              selectedIds.has(record.id) ? 'bg-slate-100 dark:bg-slate-700/40' : 
+              index % 2 === 1 ? 'bg-slate-50/50 dark:bg-slate-900/20' : ''
+            }
+            scroll={{ x: 1000 }}
+          />
+        </Card>
       </main>
 
       <Modal

@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, ClipboardList, Activity, CheckCircle2, AlertTriangle, type LucideIcon } from 'lucide-react'
 import { Pie, Column } from '@ant-design/charts'
-import { useStore, useSettings, useTodoStats, useTodoItems, useRecentTasks, useDueSoonTasks } from '../store'
+import { Button, Segmented, Typography, Card } from 'antd'
+import { useStore, useSettings, useTodoStats, useTodoItems, useRecentTasks, useDueSoonTasks, useBoardColumns } from '../store'
 import { isOverdue } from '../utils/todoHelpers'
 import { keepParams, TABLE_KEYS, TODO_KEYS } from '../utils/urlHelpers'
 
@@ -33,7 +34,6 @@ const TASK_STATUS_CLS: Record<string, string> = {
   Active: 'bg-blue-500 text-white',
 }
 
-const CARD = 'bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm'
 const CAT_BADGE = 'text-xs px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded flex-shrink-0'
 
 const PIE_BASE = {
@@ -53,22 +53,37 @@ const fmtDate = (iso: string) =>
 
 function DashboardStats() {
   const { totalCount, activeCount, completedCount, overdueCount } = useTodoStats()
+  const navigate = useNavigate()
   const counts: Record<string, number> = {
     total: totalCount, active: activeCount, completed: completedCount, overdue: overdueCount,
+  }
+
+  const handleCardClick = (key: string) => {
+    if (key === 'total') navigate('/table')
+    else if (key === 'active') navigate('/table?tSta=active')
+    else if (key === 'completed') navigate('/table?tSta=completed')
+    else if (key === 'overdue') navigate('/table?tSta=overdue')
   }
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {STAT_CARDS.map(({ key, label, icon: Icon, color, bg }) => (
-        <div key={key} className={`${CARD} flex items-start justify-between`}>
-          <div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{label}</p>
-            <p className="text-3xl font-bold text-slate-900 dark:text-white tabular-nums">{counts[key]}</p>
+        <Card 
+          key={key} 
+          className="shadow-sm border-slate-200 dark:border-slate-700 cursor-pointer hover:border-blue-500/50 transition-colors"
+          styles={{ body: { padding: 0 } }}
+          onClick={() => handleCardClick(key)}
+        >
+          <div className="p-6 flex items-start justify-between">
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{label}</p>
+              <p className="text-3xl font-bold text-slate-900 dark:text-white tabular-nums">{counts[key]}</p>
+            </div>
+            <div className={`p-2.5 rounded-xl ${bg}`}>
+              <Icon size={20} className={color} />
+            </div>
           </div>
-          <div className={`p-2.5 rounded-xl ${bg}`}>
-            <Icon size={20} className={color} />
-          </div>
-        </div>
+        </Card>
       ))}
     </div>
   )
@@ -114,7 +129,7 @@ function DashboardCharts() {
 
     items.forEach((item) => {
       if (item.completed) {
-        const dateStr = item.completedAt || item.updatedAt || item.createdAt
+        const dateStr = item.statusChangedAt || item.updatedAt || item.createdAt
         if (dateStr) {
           const itemDate = new Date(dateStr)
           itemDate.setHours(0, 0, 0, 0)
@@ -142,27 +157,32 @@ function DashboardCharts() {
     scale: { y: { domainMax: 10, tickCount: 11, tickInterval: 1 } },
     axis: {
       x: { labelFill: isDark ? '#ffffff' : '#475569' },
-      y: { 
+      y: {
         labelFill: isDark ? '#ffffff' : '#475569',
-        gridStroke: isDark ? '#334155' : '#e2e8f0', 
-        gridStrokeOpacity: 1, 
-        gridLineDash: [4, 4], 
-        gridLineWidth: 1 
-      } 
+        gridStroke: isDark ? '#334155' : '#e2e8f0',
+        gridStrokeOpacity: 1,
+        gridLineDash: [4, 4],
+        gridLineWidth: 1
+      }
     },
   }
 
   return (
-    <div className={CARD}>
+    <Card className="shadow-sm border-slate-200 dark:border-slate-700 h-full">
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-sm font-semibold text-slate-900 dark:text-white">Task Status Overview</p>
           <p className="text-xs text-slate-400 dark:text-slate-500">Distribution of tasks by status</p>
         </div>
-        <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
-          <button onClick={() => setChartType('pie')} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'pie' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>Status</button>
-          <button onClick={() => setChartType('bar')} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'bar' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>Completion</button>
-        </div>
+        <Segmented
+          options={[
+            { label: 'Status', value: 'pie' },
+            { label: 'Completion', value: 'bar' },
+          ]}
+          value={chartType}
+          onChange={(val) => setChartType(val as 'pie' | 'bar')}
+          className="dark:bg-slate-700"
+        />
       </div>
       {chartType === 'pie' ? (
         <div className="flex items-center gap-22">
@@ -192,22 +212,28 @@ function DashboardCharts() {
           <Column {...barConfig} />
         </div>
       )}
-    </div>
+    </Card>
   )
 }
 
 function RecentTasksCard({ navSearch }: { navSearch: string }) {
   const navigate = useNavigate()
   const recentTasks = useRecentTasks()
-  const toggleStatus = useStore((s) => s.todos.toggleStatus)
+  const moveTodoToColumn = useStore((s) => s.todos.moveTodoToColumn)
+  const columns = useBoardColumns()
+  const doneColumn = useMemo(() => columns.find((c) => c.isDoneColumn), [columns])
 
   return (
-    <div className={CARD}>
+    <Card className="shadow-sm border-slate-200 dark:border-slate-700">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-semibold text-slate-900 dark:text-white">Recent Tasks</p>
-        <button onClick={() => navigate('/table' + keepParams(navSearch, TABLE_KEYS))} className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors">
+        <Button
+          type="link"
+          onClick={() => navigate('/table' + keepParams(navSearch, TABLE_KEYS))}
+          className="p-0 h-auto text-xs font-medium"
+        >
           View all
-        </button>
+        </Button>
       </div>
       {recentTasks.length === 0 ? (
         <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">No tasks yet</p>
@@ -217,17 +243,29 @@ function RecentTasksCard({ navSearch }: { navSearch: string }) {
             const status = task.completed ? 'Completed' : isOverdue(task.dueDate, task.completed) ? 'Overdue' : 'Active'
             return (
               <div key={task.id} className="flex items-center gap-3 py-3">
-                <button
-                  onClick={() => toggleStatus(task.id)}
-                  title={task.completed ? 'Mark as active' : 'Mark as completed'}
-                  className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all hover:scale-110 ${
-                    task.completed
-                      ? 'bg-emerald-500 border-emerald-500'
-                      : 'border-slate-300 dark:border-slate-600 hover:border-emerald-400'
-                  }`}
-                />
+                {doneColumn && (
+                  <Button
+                    type="default"
+                    shape="circle"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      moveTodoToColumn(task.id, task.completed ? columns[0].id : doneColumn.id)
+                    }}
+                    title={task.completed ? 'Move to first column' : 'Move to Done'}
+                    className={`w-4 h-4 min-w-[16px] border-2 flex-shrink-0 p-0 transition-all hover:scale-110 ${
+                      task.completed
+                        ? 'bg-emerald-500 border-emerald-500 hover:bg-emerald-500 hover:border-emerald-500'
+                        : 'border-slate-300 dark:border-slate-600 hover:border-emerald-400 dark:bg-transparent'
+                    }`}
+                  />
+                )}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <p className={`text-sm font-medium truncate ${task.completed ? 'line-through text-slate-400' : 'text-slate-800 dark:text-white'}`}>{task.title}</p>
+                  <p 
+                    className={`text-sm font-medium truncate cursor-pointer hover:underline ${task.completed ? 'line-through text-slate-400' : 'text-slate-800 dark:text-white'}`}
+                    onClick={() => navigate(`/todoDetail/${task.id}`)}
+                  >
+                    {task.title}
+                  </p>
                   {task.category && <span className={CAT_BADGE}>{task.category}</span>}
                 </div>
                 <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium flex-shrink-0 ${TASK_STATUS_CLS[status]}`}>{status}</span>
@@ -237,20 +275,21 @@ function RecentTasksCard({ navSearch }: { navSearch: string }) {
           })}
         </div>
       )}
-    </div>
+    </Card>
   )
 }
 
 function PriorityCard() {
   const items = useTodoItems()
   const { totalCount } = useTodoStats()
+  const navigate = useNavigate()
   const priorityCounts = useMemo(
     () => Object.fromEntries(PRIORITY_BARS.map(({ key }) => [key, items.filter((i) => i.priority === key).length])),
     [items]
   )
 
   return (
-    <div className={`${CARD} pb-12`}>
+    <Card className="shadow-sm border-slate-200 dark:border-slate-700" styles={{ body: { paddingBottom: 48 } }}>
       <p className="text-sm font-semibold text-slate-900 dark:text-white">Tasks by Priority</p>
       <p className="text-xs text-slate-400 dark:text-slate-500 mb-8.5">Breakdown of tasks by priority level</p>
       <div className="space-y-8.5">
@@ -258,9 +297,13 @@ function PriorityCard() {
           const count = priorityCounts[key] ?? 0
           const pct = totalCount > 0 ? (count / totalCount) * 100 : 0
           return (
-            <div key={key}>
+            <div 
+              key={key} 
+              className="cursor-pointer group"
+              onClick={() => navigate(`/table?tPri=${key}`)}
+            >
               <div className="flex justify-between mb-2">
-                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{key}</span>
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-300 group-hover:text-blue-500 transition-colors">{key}</span>
                 <span className="text-xs font-bold text-slate-900 dark:text-white">{count}</span>
               </div>
               <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
@@ -270,22 +313,28 @@ function PriorityCard() {
           )
         })}
       </div>
-    </div>
+    </Card>
   )
 }
 
 function DueSoonCard({ navSearch }: { navSearch: string }) {
   const navigate = useNavigate()
   const dueSoonTasks = useDueSoonTasks()
-  const toggleStatus = useStore((s) => s.todos.toggleStatus)
+  const moveTodoToColumn = useStore((s) => s.todos.moveTodoToColumn)
+  const columns = useBoardColumns()
+  const doneColumn = useMemo(() => columns.find((c) => c.isDoneColumn), [columns])
 
   return (
-    <div className={CARD}>
+    <Card className="shadow-sm border-slate-200 dark:border-slate-700">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-semibold text-slate-900 dark:text-white">Tasks Due Soon</p>
-        <button onClick={() => navigate('/table' + keepParams(navSearch, TABLE_KEYS))} className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors">
+        <Button
+          type="link"
+          onClick={() => navigate('/table' + keepParams(navSearch, TABLE_KEYS))}
+          className="p-0 h-auto text-xs font-medium"
+        >
           View all
-        </button>
+        </Button>
       </div>
       {dueSoonTasks.length === 0 ? (
         <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">No upcoming deadlines</p>
@@ -298,13 +347,25 @@ function DueSoonCard({ navSearch }: { navSearch: string }) {
             const dayLabel = daysLeft === 0 ? 'Today' : `${daysLeft}d left`
             return (
               <div key={id} className="flex items-center gap-3 py-3">
-                <button
-                  onClick={() => toggleStatus(id)}
-                  title="Mark as completed"
-                  className="w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all hover:scale-110 border-slate-300 dark:border-slate-600 hover:border-emerald-400"
-                />
+                {doneColumn && (
+                  <Button
+                    type="default"
+                    shape="circle"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      moveTodoToColumn(id, doneColumn.id)
+                    }}
+                    title="Move to Done"
+                    className="w-4 h-4 min-w-[16px] border-2 flex-shrink-0 p-0 transition-all hover:scale-110 border-slate-300 dark:border-slate-600 hover:border-emerald-400 dark:bg-transparent"
+                  />
+                )}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 dark:text-white truncate">{title}</p>
+                  <p 
+                    className="text-sm font-medium text-slate-800 dark:text-white truncate cursor-pointer hover:underline"
+                    onClick={() => navigate(`/todoDetail/${id}`)}
+                  >
+                    {title}
+                  </p>
                   {category && <span className={CAT_BADGE}>{category}</span>}
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -316,7 +377,7 @@ function DueSoonCard({ navSearch }: { navSearch: string }) {
           })}
         </div>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -329,15 +390,16 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-slate-50 transition-colors duration-300 dark:bg-slate-900">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 dark:bg-slate-800 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
-          <button
+          <Button
+            type="text"
             onClick={() => navigate('/' + keepParams(navSearch, TODO_KEYS))}
-            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:text-white"
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:text-white p-0 h-auto bg-transparent"
+            icon={<ArrowLeft size={16} />}
           >
-            <ArrowLeft size={16} />
             Back
-          </button>
+          </Button>
           <span className="text-slate-300 dark:text-slate-600 select-none">|</span>
-          <h1 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight uppercase">Dashboard</h1>
+          <Typography.Title level={1} className="!text-base font-bold text-slate-900 dark:text-white tracking-tight uppercase mb-0">Dashboard</Typography.Title>
         </div>
       </header>
 

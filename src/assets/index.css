@@ -25,21 +25,12 @@
   }
 }
 
-.ant-pagination-item,
-.ant-pagination-item a,
-.ant-pagination-prev,
-.ant-pagination-next,
-.ant-pagination-jump-prev,
-.ant-pagination-jump-next {
-  outline: none !important;
-  box-shadow: none !important;
-  border: none !important;
-  background: transparent !important;
+
+::-webkit-scrollbar {
+  display: none;
 }
 
-.ant-pagination-item:focus-visible,
-.ant-pagination-prev:focus-visible,
-.ant-pagination-next:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

@@ -27,8 +27,12 @@ function formatDateTime(isoString: string): string {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-export function exportTodosToCSV(todos: Todo[], filename = 'todos.csv') {
-  const headers = ['Title', 'Description', 'Category', 'Priority', 'Status', 'Due Date', 'Created At']
+export function exportTodosToCSV(
+  todos: Todo[],
+  columnNames: Record<string, string>,
+  filename = 'todos.csv'
+) {
+  const headers = ['Title', 'Description', 'Category', 'Priority', 'Status', 'Column', 'Due Date', 'Created At']
 
   const rows = todos.map((t) => [
     escapeCSVField(t.title),
@@ -36,6 +40,7 @@ export function exportTodosToCSV(todos: Todo[], filename = 'todos.csv') {
     escapeCSVField(t.category),
     escapeCSVField(t.priority),
     escapeCSVField(t.completed ? 'Completed' : isOverdue(t.dueDate, t.completed) ? 'Overdue' : 'Active'),
+    escapeCSVField(columnNames[t.columnId] ?? ''),
     escapeCSVField(t.dueDate),
     escapeCSVField(formatDateTime(t.createdAt)),
   ])

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Input, Button, List, Popconfirm, Switch } from 'antd'
+import { Input, Button, List, Popconfirm, Switch, Typography, Card } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons'
 import { ArrowLeft } from 'lucide-react'
 import { useStore, useTodoItems } from '../store'
@@ -50,20 +50,21 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 transition-colors duration-300 dark:bg-slate-900">
       <div className="max-w-2xl mx-auto">
-        <button
+        <Button
+          type="text"
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors mb-6 dark:text-slate-400 dark:hover:text-slate-200"
+          className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors mb-6 dark:text-slate-400 dark:hover:text-slate-200 p-0 h-auto bg-transparent"
+          icon={<ArrowLeft size={16} />}
         >
-          <ArrowLeft size={16} />
           Back
-        </button>
+        </Button>
 
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-8 dark:text-white">Settings</h1>
+        <Typography.Title level={1} className="!text-2xl sm:!text-3xl font-bold text-slate-900 mb-8 dark:text-white">Settings</Typography.Title>
 
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm mb-8 dark:bg-slate-800 dark:border-slate-700">
+        <Card styles={{ body: { padding: 0 } }} className="mb-8 shadow-sm border-slate-200 dark:border-slate-700">
           <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center justify-between dark:border-slate-700">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Appearance</h2>
+              <Typography.Title level={2} className="!text-lg font-semibold text-slate-900 dark:text-white">Appearance</Typography.Title>
               <p className="text-sm text-slate-500 mt-1 dark:text-slate-400">Toggle between light and dark mode</p>
             </div>
             <Switch
@@ -73,7 +74,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="p-6 sm:p-8">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4 dark:text-white">Categories</h2>
+            <Typography.Title level={2} className="!text-lg font-semibold text-slate-900 mb-4 dark:text-white">Categories</Typography.Title>
 
             <form onSubmit={handleAddCategory} className="flex gap-2 mb-6">
               <Input
@@ -156,7 +157,7 @@ export default function SettingsPage() {
               />
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   )
