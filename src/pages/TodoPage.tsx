@@ -31,7 +31,7 @@ function TodoPage() {
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2.5">
               <div className="w-6 h-6 bg-slate-900 rounded-md dark:bg-slate-100" />
-              <span className="text-sm font-bold text-slate-900 tracking-tight dark:text-white">Todo Board</span>
+              <span className="text-sm font-bold text-slate-900 tracking-tight dark:text-white">Todo List</span>
             </div>
 
             <div className="hidden sm:flex items-center gap-6">
