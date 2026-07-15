@@ -13,8 +13,8 @@ interface TodoColumnProps {
 }
 
 const TodoColumn = memo(({ column, index }: TodoColumnProps) => {
-  const columnTodoIds = useColumnTodos(column.id)
-  const { getFilteredIds } = useTodosFilter()
+  const columnTodos = useColumnTodos(column.id)
+  const { filterTodos } = useTodosFilter()
   const add = useStore((s) => s.todos.add)
   const removeColumn = useStore((s) => s.board.removeColumn)
   const renameColumn = useStore((s) => s.board.renameColumn)
@@ -27,25 +27,25 @@ const TodoColumn = memo(({ column, index }: TodoColumnProps) => {
   const [renameValue, setRenameValue] = useState('')
 
   const filteredIds = useMemo(
-    () => getFilteredIds(columnTodoIds),
-    [getFilteredIds, columnTodoIds]
+    () => filterTodos(columnTodos),
+    [filterTodos, columnTodos]
   )
 
-  const handleAdd = useCallback(() => {
+  const handleAdd = () => {
     const title = newCardTitle.trim()
     if (!title) return
     add({ title, description: '', category: '', priority: 'Low', dueDate: null }, column.id)
     setNewCardTitle('')
     setIsAdding(false)
-  }, [add, column.id, newCardTitle])
+  }
 
-  const handleRename = useCallback(() => {
+  const handleRename = () => {
     const trimmed = renameValue.trim()
     if (trimmed && trimmed !== column.name) {
       renameColumn(column.id, trimmed)
     }
     setIsRenaming(false)
-  }, [renameValue, column.id, column.name, renameColumn])
+  }
 
   const menuItems = useMemo(() => [
     {

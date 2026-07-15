@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useStore, useBoardColumns } from '../store'
 import { useTodosFilter } from '../hooks/useTodosFilter'
+import type { Todo } from '../store/types'
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd'
 import { Plus, X } from 'lucide-react'
 import { Input, Button } from 'antd'
@@ -17,11 +18,10 @@ function TodoBoard() {
   const [isAddingColumn, setIsAddingColumn] = useState(false)
   const [newColumnName, setNewColumnName] = useState('')
 
-  const allIds = useStore((s) => s.todos.allIds)
-  const entities = useStore((s) => s.todos.entities)
-  const { getFilteredIds } = useTodosFilter()
+  const { filterTodos } = useTodosFilter()
 
   const onDragEnd = useCallback((result: DropResult) => {
+    const { allIds, entities } = useStore.getState().todos
     const { source, destination, draggableId, type } = result
     if (!destination) return
 
@@ -39,8 +39,8 @@ function TodoBoard() {
     if (srcColId !== dstColId) {
       moveTodoToColumn(draggableId, dstColId)
 
-      const dstFilteredIds = getFilteredIds(
-        allIds.filter((id) => entities[id]?.columnId === dstColId)
+      const dstFilteredIds = filterTodos(
+        allIds.filter((id) => entities[id]?.columnId === dstColId).map(id => entities[id]) as Todo[]
       )
       const destTodoId = dstFilteredIds[destination.index]
       if (destTodoId) {
@@ -54,8 +54,8 @@ function TodoBoard() {
     }
 
     if (source.index !== destination.index) {
-      const colFilteredIds = getFilteredIds(
-        allIds.filter((id) => entities[id]?.columnId === srcColId)
+      const colFilteredIds = filterTodos(
+        allIds.filter((id) => entities[id]?.columnId === srcColId).map(id => entities[id]) as Todo[]
       )
       const destTodoId = colFilteredIds[destination.index]
       if (destTodoId) {
@@ -66,16 +66,16 @@ function TodoBoard() {
         })
       }
     }
-  }, [columns, reorderColumn, moveTodoToColumn, reorderTodo, getFilteredIds, allIds, entities])
+  }, [columns, reorderColumn, moveTodoToColumn, reorderTodo, filterTodos])
 
-  const handleAddColumn = useCallback(() => {
+  const handleAddColumn = () => {
     const trimmed = newColumnName.trim()
     if (trimmed) {
       addColumn(trimmed)
       setNewColumnName('')
       setIsAddingColumn(false)
     }
-  }, [newColumnName, addColumn])
+  }
 
   return (
     <div className="flex flex-col h-full">

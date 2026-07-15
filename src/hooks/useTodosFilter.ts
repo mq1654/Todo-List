@@ -1,15 +1,17 @@
-import { useCallback } from 'react'
+import { useCallback, useDeferredValue } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useStore } from '../store'
 import type { Todo } from '../store/types'
 
 const priorityValue: Record<string, number> = { High: 3, Medium: 2, Low: 1 }
 
-function applyFilters(items: Todo[], searchParams: URLSearchParams): Todo[] {
-  const searchTerm = (searchParams.get('searchTerm') || '').toLowerCase().trim()
-  const categoryFilter = searchParams.get('categoryFilter') || 'all'
-  const sortByPriority = searchParams.get('sortByPriority') === 'true'
-  const showOverdueOnly = searchParams.get('showOverdueOnly') === 'true'
+function applyFilters(
+  items: Todo[],
+  searchTerm: string,
+  categoryFilter: string,
+  sortByPriority: boolean,
+  showOverdueOnly: boolean
+): Todo[] {
+  const term = searchTerm.toLowerCase().trim()
   const todayStr = new Date().toISOString().split('T')[0]
 
   let result = items
@@ -27,11 +29,11 @@ function applyFilters(items: Todo[], searchParams: URLSearchParams): Todo[] {
     result = result.filter((item) => !item.completed && !!item.dueDate && item.dueDate < todayStr)
   }
 
-  if (searchTerm) {
+  if (term) {
     result = result.filter(
       (item) =>
-        item.title.toLowerCase().includes(searchTerm) ||
-        (item.description && item.description.toLowerCase().includes(searchTerm))
+        item.title.toLowerCase().includes(term) ||
+        (item.description && item.description.toLowerCase().includes(term))
     )
   }
 
@@ -44,12 +46,17 @@ function applyFilters(items: Todo[], searchParams: URLSearchParams): Todo[] {
 
 export function useTodosFilter() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const entities = useStore((s) => s.todos.entities)
+  
+  const searchTerm = searchParams.get('searchTerm') || ''
+  const deferredSearchTerm = useDeferredValue(searchTerm)
+  
+  const categoryFilter = searchParams.get('categoryFilter') || 'all'
+  const sortByPriority = searchParams.get('sortByPriority') === 'true'
+  const showOverdueOnly = searchParams.get('showOverdueOnly') === 'true'
 
-  const getFilteredIds = useCallback((todoIds: string[]): string[] => {
-    const items = todoIds.map((id) => entities[id]).filter(Boolean) as Todo[]
-    return applyFilters(items, searchParams).map((t) => t.id)
-  }, [entities, searchParams])
+  const filterTodos = useCallback((items: Todo[]): string[] => {
+    return applyFilters(items, deferredSearchTerm, categoryFilter, sortByPriority, showOverdueOnly).map((t) => t.id)
+  }, [deferredSearchTerm, categoryFilter, sortByPriority, showOverdueOnly])
 
   const setFilterParam = (key: string, value: string | boolean) => {
     const nextParams = new URLSearchParams(searchParams)
@@ -63,12 +70,13 @@ export function useTodosFilter() {
   }
 
   return {
-    getFilteredIds,
-    searchTerm: searchParams.get('searchTerm') || '',
-    categoryFilter: searchParams.get('categoryFilter') || 'all',
-    sortByPriority: searchParams.get('sortByPriority') === 'true',
-    showOverdueOnly: searchParams.get('showOverdueOnly') === 'true',
+    searchTerm,
+    deferredSearchTerm,
+    categoryFilter,
+    sortByPriority,
+    showOverdueOnly,
     setFilterParam,
     toggleFilterParam,
+    filterTodos
   }
 }

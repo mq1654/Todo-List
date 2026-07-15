@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, ClipboardList, Activity, CheckCircle2, AlertTriangle, type LucideIcon } from 'lucide-react'
 import { Pie, Column } from '@ant-design/charts'
 import { Button, Segmented, Typography, Card } from 'antd'
-import { useStore, useSettings, useTodoStats, useTodoItems, useRecentTasks, useDueSoonTasks, useBoardColumns } from '../store'
+import { useStore, useTodoStats, useTodoItems, useRecentTasks, useDueSoonTasks, useBoardColumns } from '../store'
 import { isOverdue } from '../utils/todoHelpers'
 import { keepParams, TABLE_KEYS, TODO_KEYS } from '../utils/urlHelpers'
 
@@ -93,7 +93,7 @@ function DashboardCharts() {
   const [chartType, setChartType] = useState<'pie' | 'bar'>('pie')
   const items = useTodoItems()
   const { totalCount, activeCount, completedCount, overdueCount } = useTodoStats()
-  const theme = useSettings().theme
+  const theme = useStore((s) => s.settings.theme)
 
   const counts: Record<string, number> = { active: activeCount, completed: completedCount, overdue: overdueCount }
 

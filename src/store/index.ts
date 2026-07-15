@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { create } from 'zustand'
+import { useShallow } from 'zustand/react/shallow'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import { isOverdue } from '../utils/todoHelpers'
@@ -297,12 +298,12 @@ export const useTodoItems = () => {
   )
 }
 
-export const useColumnTodos = (columnId: string) => {
-  const allIds = useStore((s) => s.todos.allIds)
-  const entities = useStore((s) => s.todos.entities)
-  return useMemo(
-    () => allIds.filter((id) => entities[id]?.columnId === columnId),
-    [allIds, entities, columnId]
+export const useColumnTodos = (columnId: string): Todo[] => {
+  return useStore(
+    useShallow((s) => s.todos.allIds
+      .filter((id) => s.todos.entities[id]?.columnId === columnId)
+      .map(id => s.todos.entities[id] as Todo)
+    )
   )
 }
 
