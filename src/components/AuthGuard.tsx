@@ -27,10 +27,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     if (!user) {
-        if (location.pathname === '/' || location.pathname === '') {
-            return <Navigate to="/login" replace />
-        }
-        return <ForbiddenPage reason="unauthenticated" />
+        return <Navigate to="/login" replace />
     }
 
     if (role === 'member' && (location.pathname === '/' || location.pathname === '')) {
