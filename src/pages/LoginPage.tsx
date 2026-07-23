@@ -1,17 +1,31 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Form, Input, Button, Typography, Card, Divider, App } from 'antd'
 import { Mail, Lock } from 'lucide-react'
 import GoogleLoginButton from '../components/GoogleLoginButton'
 import { loginWithGoogle, loginWithEmail } from '../firebase/authService'
 
+const REASON_MESSAGES: Record<string, string> = {
+    disabled: 'Your account is currently disabled.',
+    deleted: 'Your account has been deleted by Admin.',
+}
+
 export default function LoginPage() {
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
     const redirectTo = searchParams.get('redirect_to')
+    const reason = searchParams.get('reason')
     const { message } = App.useApp()
     const [googleLoading, setGoogleLoading] = useState(false)
     const [emailLoading, setEmailLoading] = useState(false)
+    const hasShownReasonRef = useRef(false)
+
+    useEffect(() => {
+        if (reason && REASON_MESSAGES[reason] && !hasShownReasonRef.current) {
+            hasShownReasonRef.current = true
+            message.error(REASON_MESSAGES[reason])
+        }
+    }, [reason, message])
 
     async function onFinish(values: { email: string; password: string }) {
         setEmailLoading(true)

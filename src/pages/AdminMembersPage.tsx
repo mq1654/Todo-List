@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Table, Input, Select, Button, Tag, Popconfirm, App, Avatar, Segmented, Tooltip } from 'antd'
-import { Search, Plus, Trash2, Edit2, Users, UserCheck, UserX, ShieldAlert, Download } from 'lucide-react'
+import { Search, Plus, Trash2, Users, UserCheck, UserX, ShieldAlert, Download } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { listenToMembers, deleteMember, updateMemberStatus, type Member } from '../firebase/userService'
 import { exportMembersToCSV } from '../utils/todoHelpers'
@@ -177,12 +177,6 @@ export default function AdminMembersPage() {
 
                 return (
                     <div className="flex items-center justify-center gap-2">
-                        <Button
-                            type="text"
-                            icon={<Edit2 size={15} />}
-                            className="!text-slate-400 hover:!text-blue-600 dark:hover:!text-blue-400 !px-2"
-                            title="Edit member"
-                        />
                         {isAdmin ? (
                             <Tooltip title={isSelf ? "You cannot delete your own account" : "You cannot delete another Admin account"}>
                                 <Button
