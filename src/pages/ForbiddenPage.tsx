@@ -87,7 +87,7 @@ export default function ForbiddenPage({ reason }: { reason?: ForbiddenReason }) 
               type="info"
               showIcon
               icon={<InfoCircleOutlined className="!text-blue-500 !text-2xl" />}
-              message={<span className="font-bold text-slate-100 text-sm sm:text-base">{alertTitle}</span>}
+              title={<span className="font-bold text-slate-100 text-sm sm:text-base">{alertTitle}</span>}
               description={
                 <span className="text-xs sm:text-sm text-slate-400 block mt-0.5 leading-relaxed">
                   {alertBody}
