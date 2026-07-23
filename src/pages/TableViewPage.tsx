@@ -1,11 +1,12 @@
 import { useState, useMemo, useCallback, useDeferredValue } from 'react'
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore, useTodoItems, useBoardColumns } from '../store'
-import { Select, Tooltip, Modal, Table, Input, Button, Typography, Card } from 'antd'
-import { ArrowLeft, Search, Trash2, CheckCircle2, Circle, Download, AlertCircle } from 'lucide-react'
+import { Select, Tooltip, Modal, Table, Input, Button, Typography, Card, Avatar } from 'antd'
+import { Search, Trash2, CheckCircle2, Circle, Download, AlertCircle } from 'lucide-react'
 import type { Todo } from '../store/types'
 import { getPriorityColor, isOverdue, exportTodosToCSV } from '../utils/todoHelpers'
-import { keepParams, TODO_KEYS } from '../utils/urlHelpers'
+import { useMembers } from '../hooks/useMembers'
+import { useAuth } from '../hooks/useAuth'
 
 const PAGE_SIZE = 10
 
@@ -140,14 +141,16 @@ function useTableUrlSync(categories: string[], columnIds: string[]) {
 
 export default function TableViewPage() {
   const navigate = useNavigate()
-  const location = useLocation()
 
   const items          = useTodoItems()
   const categories     = useStore((s) => s.settings.categories)
   const remove         = useStore((s) => s.todos.remove)
+  const updateTodo     = useStore((s) => s.todos.update)
   const deleteMultiple = useStore((s) => s.todos.deleteMultiple)
   const moveTodoToColumn = useStore((s) => s.todos.moveTodoToColumn)
   const columnsData        = useBoardColumns()
+  const { activeMembers } = useMembers()
+  const { user, role } = useAuth()
   
   const columnIds = useMemo(() => columnsData.map((c) => c.id), [columnsData])
   const columnNames = useMemo(
@@ -341,6 +344,47 @@ export default function TableViewPage() {
       render: (_: unknown, item: Todo) => <StatusBadge completed={item.completed} overdue={isOverdue(item.dueDate, item.completed)} />,
     },
     {
+      title: <div className="mt-7">Assignee</div>,
+      key: 'assigneeId',
+      render: (_: unknown, item: Todo) => {
+        const assignee = activeMembers.find((m) => m.uid === item.assigneeId)
+        if (role === 'member') {
+          const displayName = assignee?.name || (item.assigneeId && user && item.assigneeId === user.uid ? (user.displayName || user.email?.split('@')[0]) : null)
+          return displayName ? (
+            <div className="flex items-center gap-2">
+              <Avatar size={22} className="bg-blue-600 text-white dark:bg-blue-500 font-bold text-[10px]">
+                {displayName[0]?.toUpperCase()}
+              </Avatar>
+              <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{displayName}</span>
+            </div>
+          ) : <EmptyDash />
+        }
+        return (
+          <Select
+            size="small"
+            value={item.assigneeId ?? 'unassigned'}
+            onChange={(val) => updateTodo({ id: item.id, title: item.title, description: item.description, category: item.category, priority: item.priority, dueDate: item.dueDate, assigneeId: val === 'unassigned' ? null : val })}
+            className="w-full min-w-[130px] [&_.ant-select-selector]:!rounded-md"
+            popupMatchSelectWidth={false}
+          >
+            <Select.Option value="unassigned">
+              <span className="text-slate-400 dark:text-slate-500 italic text-xs">Unassigned</span>
+            </Select.Option>
+            {activeMembers.map((m) => (
+              <Select.Option key={m.uid} value={m.uid}>
+                <div className="flex items-center gap-2">
+                  <Avatar size={18} className="bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 text-[9px] font-bold">
+                    {m.name[0]?.toUpperCase()}
+                  </Avatar>
+                  <span className="text-xs font-medium">{m.name}</span>
+                </div>
+              </Select.Option>
+            ))}
+          </Select>
+        )
+      },
+    },
+    {
       title: <div className="mt-7">Due Date</div>,
       dataIndex: 'dueDate',
       key: 'dueDate',
@@ -362,7 +406,7 @@ export default function TableViewPage() {
         </Tooltip>
       ),
     },
-  ]
+  ].filter((col) => col.key !== 'actions' || role === 'admin')
 
   const rowSelection = {
     selectedRowKeys: Array.from(selectedIds),
@@ -373,21 +417,6 @@ export default function TableViewPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 transition-colors duration-300 dark:bg-slate-900">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 dark:bg-slate-800 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
-          <Button
-            type="text"
-            onClick={() => navigate('/' + keepParams(location.search, TODO_KEYS))}
-            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:text-white p-0 h-auto bg-transparent"
-            icon={<ArrowLeft size={16} />}
-          >
-            Back
-          </Button>
-          <span className="text-slate-300 dark:text-slate-600 select-none">|</span>
-          <Typography.Title level={1} className="!text-base font-bold text-slate-900 dark:text-white tracking-tight uppercase mb-0">Table View</Typography.Title>
-        </div>
-      </header>
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="relative flex-1 min-w-[220px] max-w-xs">
@@ -404,15 +433,17 @@ export default function TableViewPage() {
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
               <>
-                <Button
-                  danger
-                  type="primary"
-                  onClick={() => setBulkDeleteOpen(true)}
-                  className="flex items-center gap-1.5 text-xs font-semibold"
-                  icon={<Trash2 size={13} />}
-                >
-                  {deleteBtnLabel}
-                </Button>
+                {role === 'admin' && (
+                  <Button
+                    danger
+                    type="primary"
+                    onClick={() => setBulkDeleteOpen(true)}
+                    className="flex items-center gap-1.5 text-xs font-semibold"
+                    icon={<Trash2 size={13} />}
+                  >
+                    {deleteBtnLabel}
+                  </Button>
+                )}
 
                 <Button
                   onClick={() => {
@@ -470,7 +501,6 @@ export default function TableViewPage() {
               pageSize: PAGE_SIZE,
               total: totalFiltered,
               onChange: (page) => { setFilters({ currentPage: page }); clearSelection() },
-              showSizeChanger: false,
               size: 'small',
               showTotal: (total, range) => `Showing ${range[0]}-${range[1]} of ${total} tasks`,
             }}

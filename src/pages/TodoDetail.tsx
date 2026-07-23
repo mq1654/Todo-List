@@ -1,17 +1,85 @@
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { ArrowLeft, Calendar, Tag, CheckCircle2, Circle, Clock, AlertCircle, Columns } from 'lucide-react'
-import { Button, Typography, Card } from 'antd'
+import { Button, Typography, Card, Spin } from 'antd'
 import { getPriorityColor } from '../utils/todoHelpers'
+import { useAuth } from '../hooks/useAuth'
+import ForbiddenPage from './ForbiddenPage'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '../firebase/firebaseConfig'
+import type { Todo } from '../store/types'
 
 export default function TodoDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user, role, loading: authLoading } = useAuth()
 
-  const todo = useStore((s) => s.todos.entities[id!])
+  const storeTodo = useStore((s) => s.todos.entities[id!])
   const columnEntities = useStore((s) => s.board.columnEntities)
 
-  if (!todo) {
+  const [fetchedTodo, setFetchedTodo] = useState<Todo | null>(null)
+  const [loading, setLoading] = useState(!storeTodo)
+  const [accessError, setAccessError] = useState<'private' | 'not_found' | null>(null)
+
+  const activeTodo = storeTodo || fetchedTodo
+
+  useEffect(() => {
+    if (storeTodo) {
+      setLoading(false)
+      if (role === 'member' && storeTodo.assigneeId && storeTodo.assigneeId !== user?.uid) {
+        setAccessError('private')
+      } else {
+        setAccessError(null)
+      }
+      return
+    }
+
+    if (!id || authLoading) return
+
+    let isMounted = true
+    setLoading(true)
+
+    getDoc(doc(db, 'tasks', id))
+      .then((snap) => {
+        if (!isMounted) return
+        if (!snap.exists()) {
+          setAccessError('not_found')
+        } else {
+          const data = { id: snap.id, ...snap.data() } as Todo
+          if (role === 'member' && data.assigneeId && data.assigneeId !== user?.uid) {
+            setAccessError('private')
+          } else {
+            setFetchedTodo(data)
+            setAccessError(null)
+          }
+        }
+      })
+      .catch(() => {
+        if (isMounted) setAccessError('private')
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [id, storeTodo, role, user?.uid, authLoading])
+
+  if (loading || authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 dark:bg-slate-900">
+        <Spin size="large" />
+      </div>
+    )
+  }
+
+  if (accessError === 'private') {
+    return <ForbiddenPage reason="private_resource" />
+  }
+
+  if (accessError === 'not_found' || !activeTodo) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 transition-colors duration-300 dark:bg-slate-900">
         <AlertCircle size={48} className="text-slate-400 mb-4 dark:text-slate-500" />
@@ -27,6 +95,8 @@ export default function TodoDetail() {
       </div>
     )
   }
+
+  const todo = activeTodo
 
   const isOverdue = !todo.completed && todo.dueDate && todo.dueDate < new Date().toISOString().split('T')[0]
   const columnName = columnEntities[todo.columnId]?.name ?? 'Unknown'

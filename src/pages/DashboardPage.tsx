@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, ClipboardList, Activity, CheckCircle2, AlertTriangle, type LucideIcon } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { ClipboardList, Activity, CheckCircle2, AlertTriangle, type LucideIcon } from 'lucide-react'
 import { Pie, Column } from '@ant-design/charts'
 import { Button, Segmented, Typography, Card } from 'antd'
-import { useStore, useTodoStats, useTodoItems, useRecentTasks, useDueSoonTasks, useBoardColumns } from '../store'
+import { useStore, useTodoStats, useTodoItems, useRecentTasks, useDueSoonTasks } from '../store'
 import { isOverdue } from '../utils/todoHelpers'
-import { keepParams, TABLE_KEYS, TODO_KEYS } from '../utils/urlHelpers'
+import { keepParams, TABLE_KEYS } from '../utils/urlHelpers'
 
 interface StatCard { key: string; label: string; icon: LucideIcon; color: string; bg: string }
 
@@ -219,9 +219,7 @@ function DashboardCharts() {
 function RecentTasksCard({ navSearch }: { navSearch: string }) {
   const navigate = useNavigate()
   const recentTasks = useRecentTasks()
-  const moveTodoToColumn = useStore((s) => s.todos.moveTodoToColumn)
-  const columns = useBoardColumns()
-  const doneColumn = useMemo(() => columns.find((c) => c.isDoneColumn), [columns])
+  const toggleComplete = useStore((s) => s.todos.toggleCompleted)
 
   return (
     <Card className="shadow-sm border-slate-200 dark:border-slate-700">
@@ -243,22 +241,20 @@ function RecentTasksCard({ navSearch }: { navSearch: string }) {
             const status = task.completed ? 'Completed' : isOverdue(task.dueDate, task.completed) ? 'Overdue' : 'Active'
             return (
               <div key={task.id} className="flex items-center gap-3 py-3">
-                {doneColumn && (
-                  <Button
+                <Button
                     type="default"
                     shape="circle"
                     onClick={(e) => {
                       e.stopPropagation()
-                      moveTodoToColumn(task.id, task.completed ? columns[0].id : doneColumn.id)
+                      toggleComplete(task.id)
                     }}
-                    title={task.completed ? 'Move to first column' : 'Move to Done'}
+                    title={task.completed ? 'Mark as active' : 'Mark as done'}
                     className={`w-4 h-4 min-w-[16px] border-2 flex-shrink-0 p-0 transition-all hover:scale-110 ${
                       task.completed
                         ? 'bg-emerald-500 border-emerald-500 hover:bg-emerald-500 hover:border-emerald-500'
                         : 'border-slate-300 dark:border-slate-600 hover:border-emerald-400 dark:bg-transparent'
                     }`}
                   />
-                )}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <p 
                     className={`text-sm font-medium truncate cursor-pointer hover:underline ${task.completed ? 'line-through text-slate-400' : 'text-slate-800 dark:text-white'}`}
@@ -320,9 +316,7 @@ function PriorityCard() {
 function DueSoonCard({ navSearch }: { navSearch: string }) {
   const navigate = useNavigate()
   const dueSoonTasks = useDueSoonTasks()
-  const moveTodoToColumn = useStore((s) => s.todos.moveTodoToColumn)
-  const columns = useBoardColumns()
-  const doneColumn = useMemo(() => columns.find((c) => c.isDoneColumn), [columns])
+  const toggleComplete = useStore((s) => s.todos.toggleCompleted)
 
   return (
     <Card className="shadow-sm border-slate-200 dark:border-slate-700">
@@ -347,18 +341,16 @@ function DueSoonCard({ navSearch }: { navSearch: string }) {
             const dayLabel = daysLeft === 0 ? 'Today' : `${daysLeft}d left`
             return (
               <div key={id} className="flex items-center gap-3 py-3">
-                {doneColumn && (
-                  <Button
+                <Button
                     type="default"
                     shape="circle"
                     onClick={(e) => {
                       e.stopPropagation()
-                      moveTodoToColumn(id, doneColumn.id)
+                      toggleComplete(id)
                     }}
-                    title="Move to Done"
+                    title="Mark as done"
                     className="w-4 h-4 min-w-[16px] border-2 flex-shrink-0 p-0 transition-all hover:scale-110 border-slate-300 dark:border-slate-600 hover:border-emerald-400 dark:bg-transparent"
                   />
-                )}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <p 
                     className="text-sm font-medium text-slate-800 dark:text-white truncate cursor-pointer hover:underline"
@@ -382,27 +374,11 @@ function DueSoonCard({ navSearch }: { navSearch: string }) {
 }
 
 export default function DashboardPage() {
-  const navigate = useNavigate()
   const location = useLocation()
   const navSearch = location.search
 
   return (
     <div className="min-h-screen bg-slate-50 transition-colors duration-300 dark:bg-slate-900">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 dark:bg-slate-800 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
-          <Button
-            type="text"
-            onClick={() => navigate('/' + keepParams(navSearch, TODO_KEYS))}
-            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:text-white p-0 h-auto bg-transparent"
-            icon={<ArrowLeft size={16} />}
-          >
-            Back
-          </Button>
-          <span className="text-slate-300 dark:text-slate-600 select-none">|</span>
-          <Typography.Title level={1} className="!text-base font-bold text-slate-900 dark:text-white tracking-tight uppercase mb-0">Dashboard</Typography.Title>
-        </div>
-      </header>
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <DashboardStats />
 

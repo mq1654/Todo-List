@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, memo } from 'react'
 import { useStore, useColumnTodos } from '../store'
 import { useTodosFilter } from '../hooks/useTodosFilter'
+import { useAuth } from '../hooks/useAuth'
 import { Droppable, Draggable } from '@hello-pangea/dnd'
 import { MoreHorizontal, Plus, Trash2, Pencil, Check, X } from 'lucide-react'
 import { Dropdown, Input, Button } from 'antd'
@@ -13,6 +14,7 @@ interface TodoColumnProps {
 }
 
 const TodoColumn = memo(({ column, index }: TodoColumnProps) => {
+  const { role } = useAuth()
   const columnTodos = useColumnTodos(column.id)
   const { filterTodos } = useTodosFilter()
   const add = useStore((s) => s.todos.add)
@@ -66,12 +68,12 @@ const TodoColumn = memo(({ column, index }: TodoColumnProps) => {
   ], [column, columnCount, removeColumn])
 
   return (
-    <Draggable draggableId={column.id} index={index}>
+    <Draggable draggableId={column.id} index={index} isDragDisabled={role === 'member'}>
       {(provided) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
-          className="flex-shrink-0 w-[320px] flex flex-col max-h-[calc(100vh-180px)] bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl"
+          className="flex-shrink-0 w-[320px] flex flex-col h-auto bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl"
         >
           <div
             {...provided.dragHandleProps}
@@ -109,13 +111,15 @@ const TodoColumn = memo(({ column, index }: TodoColumnProps) => {
                     {filteredIds.length}
                   </span>
                 </div>
-                <Dropdown menu={{ items: menuItems }} trigger={['click']}>
-                  <Button
-                    type="text"
-                    className="flex items-center justify-center p-0 w-6 h-6 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded transition-colors"
-                    icon={<MoreHorizontal size={16} />}
-                  />
-                </Dropdown>
+                {role === 'admin' && (
+                  <Dropdown menu={{ items: menuItems }} trigger={['click']}>
+                    <Button
+                      type="text"
+                      className="flex items-center justify-center p-0 w-6 h-6 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded transition-colors"
+                      icon={<MoreHorizontal size={16} />}
+                    />
+                  </Dropdown>
+                )}
               </>
             )}
           </div>
@@ -125,11 +129,11 @@ const TodoColumn = memo(({ column, index }: TodoColumnProps) => {
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className={`flex-1 overflow-y-auto no-scrollbar space-y-2 px-1.5 pb-2 rounded-lg transition-colors min-h-[60px] ${snapshot.isDraggingOver ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
+                className={`overflow-y-auto no-scrollbar space-y-2 px-1.5 pb-2 rounded-lg transition-colors min-h-[60px] ${snapshot.isDraggingOver ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
                   }`}
               >
                 {filteredIds.map((id, idx) => (
-                  <Draggable key={id} draggableId={id} index={idx}>
+                  <Draggable key={id} draggableId={id} index={idx} isDragDisabled={role === 'member'}>
                     {(provided) => (
                       <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
                         <TodoItem id={id} columnId={column.id} />
@@ -142,34 +146,36 @@ const TodoColumn = memo(({ column, index }: TodoColumnProps) => {
             )}
           </Droppable>
 
-          {isAdding ? (
-            <div className="px-2 pb-2 flex flex-col gap-3">
-              <Input
-                autoFocus
-                placeholder="Enter a title for this card..."
-                value={newCardTitle}
-                onChange={(e) => setNewCardTitle(e.target.value)}
-                onPressEnter={handleAdd}
-                onKeyDown={(e) => { if (e.key === 'Escape') setIsAdding(false) }}
-              />
-              <div className="flex items-center gap-2">
-                <Button type="primary" onClick={handleAdd}>
-                  Add card
-                </Button>
-                <Button type="text" onClick={() => setIsAdding(false)} icon={<X size={16} />} className="flex items-center justify-center p-0 w-8 h-8 text-slate-500" />
+          {role === 'admin' && (
+            isAdding ? (
+              <div className="px-2 pb-2 flex flex-col gap-3">
+                <Input
+                  autoFocus
+                  placeholder="Enter a title for this card..."
+                  value={newCardTitle}
+                  onChange={(e) => setNewCardTitle(e.target.value)}
+                  onPressEnter={handleAdd}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setIsAdding(false) }}
+                />
+                <div className="flex items-center gap-2">
+                  <Button type="primary" onClick={handleAdd}>
+                    Add card
+                  </Button>
+                  <Button type="text" onClick={() => setIsAdding(false)} icon={<X size={16} />} className="flex items-center justify-center p-0 w-8 h-8 text-slate-500" />
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="px-2 pb-2">
-              <Button
-                type="text"
-                onClick={() => setIsAdding(true)}
-                className="flex items-center justify-start gap-1.5 w-full h-auto px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-300 rounded-lg transition-colors"
-                icon={<Plus size={14} />}
-              >
-                Add a card
-              </Button>
-            </div>
+            ) : (
+              <div className="px-2 pb-2">
+                <Button
+                  type="text"
+                  onClick={() => setIsAdding(true)}
+                  className="flex items-center justify-start gap-1.5 w-full h-auto px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-300 rounded-lg transition-colors"
+                  icon={<Plus size={14} />}
+                >
+                  Add a card
+                </Button>
+              </div>
+            )
           )}
         </div>
       )}

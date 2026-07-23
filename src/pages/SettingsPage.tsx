@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Input, Button, List, Popconfirm, Switch, Typography, Card } from 'antd'
+import { Input, Button, Popconfirm, Switch, Typography, Card } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons'
 import { ArrowLeft } from 'lucide-react'
 import { useStore, useTodoItems } from '../store'
@@ -52,7 +52,7 @@ export default function SettingsPage() {
       <div className="max-w-2xl mx-auto">
         <Button
           type="text"
-          onClick={() => navigate('/')}
+          onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors mb-6 dark:text-slate-400 dark:hover:text-slate-200 p-0 h-auto bg-transparent"
           icon={<ArrowLeft size={16} />}
         >
@@ -90,53 +90,9 @@ export default function SettingsPage() {
 
             <div className="pt-6 border-t border-slate-100 dark:border-slate-700">
               <h3 className="text-sm font-medium text-slate-700 mb-3 dark:text-slate-300">Manage categories</h3>
-              <List
-                dataSource={categories}
-                renderItem={(cat: string) => (
-                  <List.Item
-                    key={cat}
-                    actions={
-                      editingCat === cat
-                        ? [
-                            <Button
-                              key="save"
-                              type="text"
-                              icon={<CheckOutlined />}
-                              className="text-emerald-500"
-                              onClick={() => handleRenameCategory(cat)}
-                            />,
-                            <Button
-                              key="cancel"
-                              type="text"
-                              icon={<CloseOutlined />}
-                              onClick={() => setEditingCat(null)}
-                            />,
-                          ]
-                        : [
-                            <Button
-                              key="edit"
-                              type="text"
-                              icon={<EditOutlined />}
-                              onClick={() => { setEditingCat(cat); setEditCatName(cat) }}
-                            />,
-                            <Popconfirm
-                              key="delete"
-                              title={`Delete "${cat}"?`}
-                              description={
-                                items.filter((i) => i.category === cat).length > 0
-                                  ? 'Tasks in this category will be moved to "Uncategorized".'
-                                  : 'This action cannot be undone.'
-                              }
-                              onConfirm={() => handleDeleteCategory(cat)}
-                              okText="Delete"
-                              okButtonProps={{ danger: true }}
-                              cancelText="Cancel"
-                            >
-                              <Button type="text" icon={<DeleteOutlined />} danger />
-                            </Popconfirm>,
-                          ]
-                    }
-                  >
+              <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                {categories.map((cat: string) => (
+                  <div key={cat} className="py-3 flex items-center justify-between gap-4">
                     {editingCat === cat ? (
                       <Input
                         autoFocus
@@ -147,14 +103,54 @@ export default function SettingsPage() {
                           if (e.key === 'Escape') setEditingCat(null)
                         }}
                         size="small"
-                        style={{ maxWidth: 240 }}
+                        className="max-w-[240px]"
                       />
                     ) : (
-                      <span className="text-sm text-slate-700 dark:text-slate-300">{cat}</span>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{cat}</span>
                     )}
-                  </List.Item>
-                )}
-              />
+
+                    <div className="flex items-center gap-1">
+                      {editingCat === cat ? (
+                        <>
+                          <Button
+                            type="text"
+                            icon={<CheckOutlined />}
+                            className="text-emerald-500"
+                            onClick={() => handleRenameCategory(cat)}
+                          />
+                          <Button
+                            type="text"
+                            icon={<CloseOutlined />}
+                            onClick={() => setEditingCat(null)}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            type="text"
+                            icon={<EditOutlined />}
+                            onClick={() => { setEditingCat(cat); setEditCatName(cat) }}
+                          />
+                          <Popconfirm
+                            title={`Delete "${cat}"?`}
+                            description={
+                              items.filter((i) => i.category === cat).length > 0
+                                ? 'Tasks in this category will be moved to "Uncategorized".'
+                                : 'This action cannot be undone.'
+                            }
+                            onConfirm={() => handleDeleteCategory(cat)}
+                            okText="Delete"
+                            okButtonProps={{ danger: true }}
+                            cancelText="Cancel"
+                          >
+                            <Button type="text" icon={<DeleteOutlined />} danger />
+                          </Popconfirm>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </Card>

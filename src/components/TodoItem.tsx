@@ -3,10 +3,12 @@ import { useStore } from '../store'
 import TodoEditModal from './TodoEditModal'
 
 import { Trash2, Pencil, Calendar, Tag, AlignLeft, Plus, X, Check, Circle, ChevronDown, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
-import { Button, Checkbox, Popover, Input, Select, DatePicker, Calendar as AntCalendar, AutoComplete } from 'antd'
+import { Button, Checkbox, Popover, Input, Select, DatePicker, Calendar as AntCalendar, AutoComplete, Avatar, Tooltip } from 'antd'
 import { CheckCircleFilled } from '@ant-design/icons'
 import type { TodoPayload } from '../store/types'
 import { getPriorityColor, isOverdue } from '../utils/todoHelpers'
+import { useMembers } from '../hooks/useMembers'
+import { useAuth } from '../hooks/useAuth'
 import dayjs from 'dayjs'
 
 interface TodoItemProps {
@@ -29,6 +31,24 @@ const TodoItem = memo(({
   const remove = useStore((s) => s.todos.remove)
   const update = useStore((s) => s.todos.update)
   const toggleCompleted = useStore((s) => s.todos.toggleCompleted)
+  const { user, role } = useAuth()
+  const { activeMembers } = useMembers()
+
+  const assignee = useMemo(() => {
+    const found = activeMembers.find((m) => m.uid === item?.assigneeId)
+    if (found) return found
+    if (item?.assigneeId && user && item.assigneeId === user.uid) {
+      return {
+        uid: user.uid,
+        name: user.displayName || user.email?.split('@')[0] || 'Me',
+        email: user.email || '',
+        role: 'member' as const,
+        status: 'active' as const,
+        createdAt: '',
+      }
+    }
+    return null
+  }, [activeMembers, item?.assigneeId, user])
 
   const [isEditing, setIsEditing] = useState(false)
 
@@ -154,7 +174,8 @@ const TodoItem = memo(({
           }`}>
           <Button
             type="text"
-            className={`flex-shrink-0 flex items-center justify-center cursor-pointer ${item.completed
+            disabled={role === 'member'}
+            className={`flex-shrink-0 flex items-center justify-center ${role === 'admin' ? 'cursor-pointer' : 'cursor-default'} ${item.completed
                 ? '!text-emerald-500 hover:!text-emerald-600'
                 : '!text-slate-300 hover:!text-emerald-500 dark:!text-slate-600'
               }`}
@@ -167,7 +188,7 @@ const TodoItem = memo(({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              handleToggleCompleted();
+              if (role === 'admin') handleToggleCompleted();
             }}
             onPointerDown={(e) => e.stopPropagation()}
           />
@@ -181,21 +202,33 @@ const TodoItem = memo(({
         </p>
       </div>
 
-      {item.description && (
-        <div className="mt-2 text-slate-400 dark:text-slate-500 flex items-center cursor-pointer" onClick={() => setIsEditing(true)}>
-          <AlignLeft size={14} />
+      <div className="mt-2.5 flex items-center justify-between">
+        {item.description ? (
+          <div className="text-slate-400 dark:text-slate-500 flex items-center cursor-pointer" onClick={() => setIsEditing(true)}>
+            <AlignLeft size={14} />
+          </div>
+        ) : <div />}
+
+        {assignee && (
+          <Tooltip title={`Assigned to: ${assignee.name}`}>
+            <Avatar size={22} className="bg-blue-600 text-white dark:bg-blue-500 font-bold text-[10px] shadow-xs cursor-pointer border border-white dark:border-slate-800" onClick={() => setIsEditing(true)}>
+              {assignee.name[0]?.toUpperCase()}
+            </Avatar>
+          </Tooltip>
+        )}
+      </div>
+
+      {role === 'admin' && (
+        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Popover content={quickEditContent} trigger="click" placement="bottomRight">
+            <Button
+              type="text"
+              className="flex items-center justify-center p-0 w-7 h-7 text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors dark:hover:text-slate-200 dark:hover:bg-slate-600 rounded-md bg-slate-100 dark:bg-slate-700 shadow-sm"
+              icon={<Pencil size={13} />}
+            />
+          </Popover>
         </div>
       )}
-
-      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Popover content={quickEditContent} trigger="click" placement="bottomRight">
-          <Button
-            type="text"
-            className="flex items-center justify-center p-0 w-7 h-7 text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors dark:hover:text-slate-200 dark:hover:bg-slate-600 rounded-md bg-slate-100 dark:bg-slate-700 shadow-sm"
-            icon={<Pencil size={13} />}
-          />
-        </Popover>
-      </div>
 
       {isSelectionMode && (
         <div className="flex items-center self-center pl-2 shrink-0">

@@ -54,3 +54,29 @@ export function exportTodosToCSV(
   link.click()
   URL.revokeObjectURL(url)
 }
+
+export function exportMembersToCSV(
+  members: { uid: string; name: string; email: string; role: string; status?: string; createdAt: string }[],
+  filename = 'members.csv'
+) {
+  const headers = ['UID', 'Name', 'Email', 'Role', 'Status', 'Created At']
+
+  const rows = members.map((m) => [
+    escapeCSVField(m.uid),
+    escapeCSVField(m.name),
+    escapeCSVField(m.email),
+    escapeCSVField(m.role),
+    escapeCSVField(m.status || 'active'),
+    escapeCSVField(formatDateTime(m.createdAt)),
+  ])
+
+  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+

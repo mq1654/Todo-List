@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useStore, useBoardColumns } from '../store'
 import { useTodosFilter } from '../hooks/useTodosFilter'
+import { useAuth } from '../hooks/useAuth'
 import type { Todo } from '../store/types'
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd'
 import { Plus, X } from 'lucide-react'
@@ -9,6 +10,7 @@ import TodoColumn from './TodoColumn'
 import TodoFilter from './TodoFilter'
 
 function TodoBoard() {
+  const { role } = useAuth()
   const columns = useBoardColumns()
   const reorderTodo = useStore((s) => s.todos.reorderTodo)
   const moveTodoToColumn = useStore((s) => s.todos.moveTodoToColumn)
@@ -21,6 +23,7 @@ function TodoBoard() {
   const { filterTodos } = useTodosFilter()
 
   const onDragEnd = useCallback((result: DropResult) => {
+    if (role === 'member') return
     const { allIds, entities } = useStore.getState().todos
     const { source, destination, draggableId, type } = result
     if (!destination) return
@@ -96,46 +99,48 @@ function TodoBoard() {
               ))}
               {provided.placeholder}
 
-              <div className="flex-shrink-0 w-[280px]">
-                {isAddingColumn ? (
-                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-2">
-                    <Input
-                      autoFocus
-                      placeholder="Column name..."
-                      value={newColumnName}
-                      onChange={(e) => setNewColumnName(e.target.value)}
-                      onPressEnter={handleAddColumn}
-                      onKeyDown={(e) => { if (e.key === 'Escape') setIsAddingColumn(false) }}
-                      size="small"
-                    />
-                    <div className="flex items-center gap-2 mt-2">
-                      <Button
-                        type="primary"
-                        onClick={handleAddColumn}
+              {role === 'admin' && (
+                <div className="flex-shrink-0 w-[280px]">
+                  {isAddingColumn ? (
+                    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-2">
+                      <Input
+                        autoFocus
+                        placeholder="Column name..."
+                        value={newColumnName}
+                        onChange={(e) => setNewColumnName(e.target.value)}
+                        onPressEnter={handleAddColumn}
+                        onKeyDown={(e) => { if (e.key === 'Escape') setIsAddingColumn(false) }}
                         size="small"
-                        className="bg-slate-900 dark:bg-slate-100 dark:text-slate-900 font-semibold"
-                      >
-                        Add column
-                      </Button>
-                      <Button
-                        type="text"
-                        onClick={() => setIsAddingColumn(false)}
-                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 flex items-center justify-center p-0 w-6 h-6"
-                        icon={<X size={16} />}
                       />
+                      <div className="flex items-center gap-2 mt-2">
+                        <Button
+                          type="primary"
+                          onClick={handleAddColumn}
+                          size="small"
+                          className="bg-slate-900 dark:bg-slate-100 dark:text-slate-900 font-semibold"
+                        >
+                          Add column
+                        </Button>
+                        <Button
+                          type="text"
+                          onClick={() => setIsAddingColumn(false)}
+                          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 flex items-center justify-center p-0 w-6 h-6"
+                          icon={<X size={16} />}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <Button
-                    type="text"
-                    onClick={() => setIsAddingColumn(true)}
-                    className="flex items-center justify-start gap-2 w-full h-auto px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 bg-slate-100/50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 dark:hover:text-slate-300 rounded-xl transition-colors"
-                    icon={<Plus size={16} />}
-                  >
-                    Add another list
-                  </Button>
-                )}
-              </div>
+                  ) : (
+                    <Button
+                      type="text"
+                      onClick={() => setIsAddingColumn(true)}
+                      className="flex items-center justify-start gap-2 w-full h-auto px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 bg-slate-100/50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 dark:hover:text-slate-300 rounded-xl transition-colors"
+                      icon={<Plus size={16} />}
+                    >
+                      Add another list
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </Droppable>
