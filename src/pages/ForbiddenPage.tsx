@@ -28,7 +28,7 @@ export default function ForbiddenPage({ reason }: { reason?: ForbiddenReason }) 
   let alertBody = 'The page you are trying to access is only available for a specific role.'
   let buttonText = 'Back to Dashboard'
   let buttonIcon = <LayoutGrid size={16} />
-  let handleAction = () => navigate('/')
+  let handleAction = () => navigate('/board')
 
   if (activeReason === 'unauthenticated') {
     alertTitle = 'Authentication Required'
@@ -42,13 +42,13 @@ export default function ForbiddenPage({ reason }: { reason?: ForbiddenReason }) 
     alertBody = 'This page is restricted to administrators only.'
     buttonText = 'Back to Dashboard'
     buttonIcon = <ArrowLeft size={16} />
-    handleAction = () => navigate('/')
+    handleAction = () => navigate('/board')
   } else if (activeReason === 'private_resource') {
     alertTitle = 'Private Content'
     alertBody = 'This resource is private or belongs to another user.'
     buttonText = 'Back to Dashboard'
     buttonIcon = <ArrowLeft size={16} />
-    handleAction = () => navigate('/')
+    handleAction = () => navigate('/board')
   }
 
   return (

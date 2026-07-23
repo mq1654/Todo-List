@@ -17,7 +17,7 @@ export default function LoginPage() {
         setEmailLoading(true)
         try {
             await loginWithEmail(values.email, values.password)
-            navigate(redirectTo || '/', { replace: true })
+            navigate(redirectTo || '/board', { replace: true })
         } catch (error: unknown) {
             if (error instanceof Error && error.message === 'Your account is currently disabled.') {
                 message.error('Your account is currently disabled.')
@@ -35,7 +35,7 @@ export default function LoginPage() {
         setGoogleLoading(true)
         try {
             await loginWithGoogle()
-            navigate(redirectTo || '/', { replace: true })
+            navigate(redirectTo || '/board', { replace: true })
         } catch (error: unknown) {
             if (error instanceof Error && error.message === 'Your account is currently disabled.') {
                 message.error('Your account is currently disabled.')

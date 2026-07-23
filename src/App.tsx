@@ -32,7 +32,8 @@ function App() {
                 </Route>
 
                 <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
-                    <Route path="/" element={<TodoPage />} />
+                    <Route path="/" element={<Navigate to="/board" replace />} />
+                    <Route path="/board" element={<TodoPage />} />
                     <Route path="/table" element={<TableViewPage />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/todoDetail/:id" element={<TodoDetail />} />

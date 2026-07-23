@@ -8,7 +8,7 @@ import { logout } from '../firebase/authService'
 import { keepParams, TABLE_KEYS } from '../utils/urlHelpers'
 
 const NAV_TABS = [
-    { label: 'Board', value: '/', icon: <LayoutGrid size={14} /> },
+    { label: 'Board', value: '/board', icon: <LayoutGrid size={14} /> },
     { label: 'Table', value: '/table', icon: <Table2 size={14} /> },
     { label: 'Dashboard', value: '/dashboard', icon: <BarChart2 size={14} /> },
 ]
@@ -19,7 +19,7 @@ export default function AppLayout() {
     const navigate = useNavigate()
     const location = useLocation()
 
-    const activeTab = NAV_TABS.find((t) => t.value === location.pathname)?.value ?? '/'
+    const activeTab = NAV_TABS.find((t) => t.value === location.pathname)?.value ?? '/board'
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 flex flex-col">
