@@ -1,12 +1,12 @@
-import { useState, useRef, useCallback, useMemo, memo } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useStore } from '../store'
 import TodoEditModal from './TodoEditModal'
 
-import { Trash2, Pencil, Calendar, Tag, AlignLeft, Plus, X, Check, Circle, ChevronDown, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
-import { Button, Checkbox, Popover, Input, Select, DatePicker, Calendar as AntCalendar, AutoComplete, Avatar, Tooltip } from 'antd'
+import { Trash2, Pencil, Calendar, Tag, AlignLeft, Circle } from 'lucide-react'
+import { Button, Checkbox, Popover, Select, DatePicker, Avatar, Tooltip } from 'antd'
 import { CheckCircleFilled } from '@ant-design/icons'
 import type { TodoPayload } from '../store/types'
-import { getPriorityColor, isOverdue } from '../utils/todoHelpers'
+import { getPriorityColor, isOverdue, formatDueDate, parseCategories, buildTodoPayload } from '../utils/todoHelpers'
 import { useMembers } from '../hooks/useMembers'
 import { useAuth } from '../hooks/useAuth'
 import dayjs from 'dayjs'
@@ -20,7 +20,7 @@ interface TodoItemProps {
   onLongPress?: (id: string) => void
 }
 
-const TodoItem = memo(({
+const TodoItem = ({
   id,
   isSelected = false,
   isSelectionMode = false,
@@ -53,15 +53,10 @@ const TodoItem = memo(({
   const [isEditing, setIsEditing] = useState(false)
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const longPressActivated = useRef(false)
-
-
 
   const startLongPress = (e: React.PointerEvent) => {
     if (e.button !== 0 || (e.target as HTMLElement).closest('button, input')) return
-    longPressActivated.current = false
     timerRef.current = setTimeout(() => {
-      longPressActivated.current = true
       onLongPress?.(id)
     }, 700)
   }
@@ -72,30 +67,10 @@ const TodoItem = memo(({
     timerRef.current = null
   }
 
-  const itemCategories = useMemo(() => {
-    if (!item?.category) return []
-    return [...new Set(item.category.split(',').map(c => c.trim()).filter(Boolean))]
-  }, [item?.category])
+  const itemCategories = parseCategories(item?.category)
 
-  const getPayload = (overrides: Partial<TodoPayload> = {}): TodoPayload & { id: string } => ({
-    id,
-    title: item?.title || '',
-    description: item?.description || '',
-    category: item?.category || '',
-    priority: item?.priority || 'Low',
-    dueDate: item?.dueDate || null,
-    ...overrides
-  })
-
-  const handleToggleCompleted = () => {
-    toggleCompleted(id)
-  }
-
-  const isModalOpen = isEditing
-
-  const closeModal = () => {
-    setIsEditing(false)
-  }
+  const getPayload = (overrides: Partial<TodoPayload> = {}): TodoPayload & { id: string } =>
+    buildTodoPayload(id, item, overrides)
 
   if (!item) return null
 
@@ -158,7 +133,7 @@ const TodoItem = memo(({
                   : 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-700/50 dark:text-slate-400 dark:border-slate-600'
               }`}>
               <Calendar size={10} />
-              {new Date(item.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {formatDueDate(item.dueDate)}
             </span>
           )}
           {item.completed && (
@@ -188,7 +163,7 @@ const TodoItem = memo(({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              if (role === 'admin') handleToggleCompleted();
+              if (role === 'admin') toggleCompleted(id);
             }}
             onPointerDown={(e) => e.stopPropagation()}
           />
@@ -240,11 +215,11 @@ const TodoItem = memo(({
         </div>
       )}
 
-      {isModalOpen && (
-        <TodoEditModal id={id} onClose={closeModal} />
+      {isEditing && (
+        <TodoEditModal id={id} onClose={() => setIsEditing(false)} />
       )}
     </div>
   )
-})
+}
 
 export default TodoItem

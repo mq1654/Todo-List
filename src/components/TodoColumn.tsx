@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, memo } from 'react'
+import { useState, useMemo } from 'react'
 import { useStore, useColumnTodos } from '../store'
 import { useTodosFilter } from '../hooks/useTodosFilter'
 import { useAuth } from '../hooks/useAuth'
@@ -13,7 +13,7 @@ interface TodoColumnProps {
   index: number
 }
 
-const TodoColumn = memo(({ column, index }: TodoColumnProps) => {
+const TodoColumn = ({ column, index }: TodoColumnProps) => {
   const { role } = useAuth()
   const columnTodos = useColumnTodos(column.id)
   const { filterTodos } = useTodosFilter()
@@ -49,7 +49,7 @@ const TodoColumn = memo(({ column, index }: TodoColumnProps) => {
     setIsRenaming(false)
   }
 
-  const menuItems = useMemo(() => [
+  const menuItems = [
     {
       key: 'rename',
       label: 'Rename',
@@ -65,7 +65,7 @@ const TodoColumn = memo(({ column, index }: TodoColumnProps) => {
         onClick: () => removeColumn(column.id),
       }]
       : []),
-  ], [column, columnCount, removeColumn])
+  ]
 
   return (
     <Draggable draggableId={column.id} index={index} isDragDisabled={role === 'member'}>
@@ -181,6 +181,6 @@ const TodoColumn = memo(({ column, index }: TodoColumnProps) => {
       )}
     </Draggable>
   )
-})
+}
 
 export default TodoColumn

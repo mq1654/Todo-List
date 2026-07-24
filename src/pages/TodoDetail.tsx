@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { ArrowLeft, Calendar, Tag, CheckCircle2, Circle, Clock, AlertCircle, Columns } from 'lucide-react'
 import { Button, Typography, Card, Spin } from 'antd'
-import { getPriorityColor } from '../utils/todoHelpers'
+import { getPriorityColor, isOverdue, formatDueDate } from '../utils/todoHelpers'
 import { useAuth } from '../hooks/useAuth'
 import ForbiddenPage from './ForbiddenPage'
 import { doc, getDoc } from 'firebase/firestore'
@@ -98,7 +98,7 @@ export default function TodoDetail() {
 
   const todo = activeTodo
 
-  const isOverdue = !todo.completed && todo.dueDate && todo.dueDate < new Date().toISOString().split('T')[0]
+  const taskIsOverdue = isOverdue(todo.dueDate, todo.completed)
   const columnName = columnEntities[todo.columnId]?.name ?? 'Unknown'
 
   return (
@@ -132,7 +132,7 @@ export default function TodoDetail() {
                 <CheckCircle2 size={12} />
                 Completed
               </span>
-            ) : isOverdue ? (
+            ) : taskIsOverdue ? (
               <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-red-700 bg-red-100 border border-red-200 rounded-md dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50">
                 <AlertCircle size={12} />
                 Overdue
@@ -160,14 +160,14 @@ export default function TodoDetail() {
           <div className="border-t border-slate-100 pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 dark:border-slate-700">
             {todo.dueDate && (
               <div className="flex items-center gap-3 text-sm">
-                <div className={`p-2 rounded-lg ${isOverdue ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'bg-slate-50 text-slate-500 dark:bg-slate-700/50 dark:text-slate-400'}`}>
+                <div className={`p-2 rounded-lg ${taskIsOverdue ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'bg-slate-50 text-slate-500 dark:bg-slate-700/50 dark:text-slate-400'}`}>
                   <Calendar size={18} />
                 </div>
                 <div>
                   <p className="text-xs font-medium text-slate-500 mb-0.5 dark:text-slate-400">Due Date</p>
-                  <p className={`font-semibold ${isOverdue ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-200'}`}>
-                    {new Date(todo.dueDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })}
-                    {isOverdue && ' (Overdue)'}
+                  <p className={`font-semibold ${taskIsOverdue ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-200'}`}>
+                    {formatDueDate(todo.dueDate)}
+                    {taskIsOverdue && ' (Overdue)'}
                   </p>
                 </div>
               </div>

@@ -7,7 +7,7 @@ import { collection, onSnapshot, query, orderBy, getDocs, where, getDoc, doc } f
 import { db, auth } from '../firebase/firebaseConfig'
 import * as taskService from '../firebase/taskService'
 import * as columnService from '../firebase/columnService'
-import { isOverdue } from '../utils/todoHelpers'
+import { isOverdue, parseCategories } from '../utils/todoHelpers'
 import type { Todo, TodoPayload, Column } from './types'
 
 interface TodoSlice {
@@ -115,8 +115,18 @@ export const useStore = create<AppStore>()(
 
         migrateCategory: async ({ from, to }) => {
           const s = get()
-          const affected = s.todos.allIds.filter((id) => s.todos.entities[id]?.category === from)
-          await Promise.all(affected.map((id) => taskService.updateTask(id, { category: to })))
+          const affected = s.todos.allIds.filter((id) => {
+            const cats = parseCategories(s.todos.entities[id]?.category)
+            return cats.includes(from)
+          })
+          await Promise.all(
+            affected.map((id) => {
+              const currentCats = parseCategories(s.todos.entities[id]?.category)
+              const updatedCats = currentCats.map((c) => (c === from ? to : c))
+              const newCategoryStr = [...new Set(updatedCats)].join(', ')
+              return taskService.updateTask(id, { category: newCategoryStr || to })
+            })
+          )
         },
 
         reorderTodo: async ({ sourceId, destinationId, isMovingDown }) => {
@@ -183,18 +193,50 @@ export const useStore = create<AppStore>()(
             }
           }),
 
-        removeCategory: (cat) =>
-          set((s) => {
-            s.settings.categories = s.settings.categories.filter((c) => c !== cat)
-          }),
+        removeCategory: async (cat) => {
+          const s = get()
+          set((state) => {
+            state.settings.categories = state.settings.categories.filter((c) => c !== cat)
+          })
+          const affected = s.todos.allIds.filter((id) => {
+            const cats = parseCategories(s.todos.entities[id]?.category)
+            return cats.includes(cat)
+          })
+          if (affected.length > 0) {
+            await Promise.all(
+              affected.map((id) => {
+                const currentCats = parseCategories(s.todos.entities[id]?.category)
+                const remaining = currentCats.filter((c) => c !== cat)
+                const newCategoryStr = remaining.length > 0 ? remaining.join(', ') : 'Uncategorized'
+                return taskService.updateTask(id, { category: newCategoryStr })
+              })
+            )
+          }
+        },
 
-        renameCategory: ({ oldName, newName }) =>
-          set((s) => {
-            const trimmed = newName.trim()
-            if (!trimmed || s.settings.categories.includes(trimmed)) return
-            const idx = s.settings.categories.indexOf(oldName)
-            if (idx !== -1) s.settings.categories[idx] = trimmed
-          }),
+        renameCategory: async ({ oldName, newName }) => {
+          const s = get()
+          const trimmed = newName.trim()
+          if (!trimmed || s.settings.categories.includes(trimmed)) return
+          set((state) => {
+            const idx = state.settings.categories.indexOf(oldName)
+            if (idx !== -1) state.settings.categories[idx] = trimmed
+          })
+          const affected = s.todos.allIds.filter((id) => {
+            const cats = parseCategories(s.todos.entities[id]?.category)
+            return cats.includes(oldName)
+          })
+          if (affected.length > 0) {
+            await Promise.all(
+              affected.map((id) => {
+                const currentCats = parseCategories(s.todos.entities[id]?.category)
+                const updated = currentCats.map((c) => (c === oldName ? trimmed : c))
+                const newCategoryStr = [...new Set(updated)].join(', ')
+                return taskService.updateTask(id, { category: newCategoryStr })
+              })
+            )
+          }
+        },
       },
     })),
     {
@@ -427,33 +469,45 @@ export const useBoardColumns = () => {
 
 export const useTodoStats = () => {
   const items = useTodoItems()
-  return useMemo(
-    () => ({
-      totalCount: items.length,
-      activeCount: items.filter((i) => !i.completed).length,
-      completedCount: items.filter((i) => i.completed).length,
-      overdueCount: items.filter((i) => isOverdue(i.dueDate, i.completed)).length,
-    }),
-    [items]
-  )
+  let activeCount = 0
+  let completedCount = 0
+  let overdueCount = 0
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    if (item.completed) {
+      completedCount++
+    } else {
+      activeCount++
+    }
+    if (isOverdue(item.dueDate, item.completed)) {
+      overdueCount++
+    }
+  }
+
+  return {
+    totalCount: items.length,
+    activeCount,
+    completedCount,
+    overdueCount,
+  }
 }
 
 export const useRecentTasks = () => {
   const items = useTodoItems()
-  return useMemo(() => [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 3), [items])
+  return [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 3)
 }
 
 export const useDueSoonTasks = () => {
   const items = useTodoItems()
-  return useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayMs = today.getTime()
-    const todayStr = today.toISOString().split('T')[0]
-    return items
-      .filter((i) => !i.completed && i.dueDate && i.dueDate >= todayStr)
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-      .slice(0, 3)
-      .map((i) => ({ ...i, daysLeft: Math.ceil((new Date(i.dueDate).getTime() - todayMs) / 86400000) }))
-  }, [items])
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayMs = today.getTime()
+  const todayStr = today.toISOString().split('T')[0]
+
+  return items
+    .filter((i) => !i.completed && i.dueDate && i.dueDate >= todayStr)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .slice(0, 3)
+    .map((i) => ({ ...i, daysLeft: Math.ceil((new Date(i.dueDate).getTime() - todayMs) / 86400000) }))
 }

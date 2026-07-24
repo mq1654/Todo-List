@@ -1,9 +1,10 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useStore } from '../store'
 import type { TodoPayload } from '../store/types'
 import { Plus, X, Check, Pencil, AlignLeft, ChevronDown, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
-import { Button, Checkbox, Popover, Input, DatePicker, Calendar as AntCalendar, AutoComplete, Avatar, Select } from 'antd'
+import { Button, Checkbox, Popover, Input, DatePicker, Calendar as AntCalendar, AutoComplete, Avatar, Select, Modal } from 'antd'
 import dayjs from 'dayjs'
+import { formatDueDate, parseCategories, buildTodoPayload } from '../utils/todoHelpers'
 import { useMembers } from '../hooks/useMembers'
 import { useAuth } from '../hooks/useAuth'
 import { auth } from '../firebase/firebaseConfig'
@@ -89,24 +90,10 @@ export default function TodoEditModal({ id, onClose }: TodoEditModalProps) {
   const [tempDate, setTempDate] = useState<dayjs.Dayjs | null>(null)
   const [timeStr, setTimeStr] = useState('')
 
-  const itemCategories = useMemo(() => {
-    if (!item?.category) return []
-    return [...new Set(item.category.split(',').map(c => c.trim()).filter(Boolean))]
-  }, [item?.category])
+  const itemCategories = parseCategories(item?.category)
 
-  const getPayload = (overrides: Partial<TodoPayload> = {}): TodoPayload & { id: string } => ({
-    id,
-    title: item?.title || '',
-    description: item?.description || '',
-    category: item?.category || '',
-    priority: item?.priority || 'Low',
-    dueDate: item?.dueDate || null,
-    ...overrides
-  })
-
-  const handleToggleCompleted = () => {
-    toggleCompleted(id)
-  }
+  const getPayload = (overrides: Partial<TodoPayload> = {}): TodoPayload & { id: string } =>
+    buildTodoPayload(id, item, overrides)
 
   const handleDescChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setEditDesc(e.target.value)
@@ -122,16 +109,21 @@ export default function TodoEditModal({ id, onClose }: TodoEditModalProps) {
   if (!item) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-slate-50 dark:bg-slate-900 w-full max-w-2xl rounded-xl shadow-xl overflow-hidden flex flex-col max-h-full -mt-75" onClick={e => e.stopPropagation()}>
+    <Modal
+      open={true}
+      onCancel={onClose}
+      footer={null}
+      destroyOnClose
+      centered
+      width={672}
+      styles={{ body: { padding: 0 } }}
+    >
+      <div className="bg-slate-50 dark:bg-slate-900 rounded-xl overflow-hidden flex flex-col">
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
-            <Checkbox checked={item.completed} onChange={handleToggleCompleted} disabled={role === 'member'} />
+            <Checkbox checked={item.completed} onChange={() => toggleCompleted(id)} disabled={role === 'member'} />
             {item.title}
           </h2>
-          <Button type="text" onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-            Cancel
-          </Button>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">
@@ -319,20 +311,20 @@ export default function TodoEditModal({ id, onClose }: TodoEditModalProps) {
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">
-                        <Button type="primary" className="w-full" onClick={() => { update(getPayload({ dueDate: tempDate ? tempDate.format('YYYY-MM-DD HH:mm') : null })); setIsDatePopoverOpen(false); }}>Save</Button>
+                        <Button type="primary" className="w-full" onClick={() => { update(getPayload({ dueDate: tempDate ? tempDate.format('YYYY-MM-DDTHH:mm') : null })); setIsDatePopoverOpen(false); }}>Save</Button>
                         <Button className="w-full bg-slate-100 border-none dark:bg-slate-800" onClick={() => { setTempDate(null); update(getPayload({ dueDate: null })); setIsDatePopoverOpen(false); }}>Remove</Button>
                       </div>
                     </div>
                   }
                 >
                   <div className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-700 bg-slate-100 cursor-pointer rounded-md dark:bg-slate-800 dark:text-slate-300 w-fit">
-                    <span>{item.dueDate ? dayjs(item.dueDate).format('HH:mm DD MMM') : 'Add date'}</span>
+                    <span>{item.dueDate ? formatDueDate(item.dueDate) : 'Add date'}</span>
                     <ChevronDown size={14} className="text-slate-500" />
                   </div>
                 </Popover>
               ) : (
                 <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 rounded-md dark:bg-slate-800 dark:text-slate-300 w-fit min-h-[32px]">
-                  <span>{item.dueDate ? dayjs(item.dueDate).format('HH:mm DD MMM') : 'No due date'}</span>
+                  <span>{item.dueDate ? formatDueDate(item.dueDate) : 'No due date'}</span>
                 </div>
               )}
             </div>
@@ -388,6 +380,6 @@ export default function TodoEditModal({ id, onClose }: TodoEditModalProps) {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

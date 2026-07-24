@@ -4,7 +4,7 @@ import { useStore, useTodoItems, useBoardColumns } from '../store'
 import { Select, Tooltip, Modal, Table, Input, Button, Typography, Card, Avatar } from 'antd'
 import { Search, Trash2, CheckCircle2, Circle, Download, AlertCircle } from 'lucide-react'
 import type { Todo } from '../store/types'
-import { getPriorityColor, isOverdue, exportTodosToCSV } from '../utils/todoHelpers'
+import { getPriorityColor, isOverdue, exportTodosToCSV, formatDueDate, parseCategories } from '../utils/todoHelpers'
 import { useMembers } from '../hooks/useMembers'
 import { useAuth } from '../hooks/useAuth'
 
@@ -67,10 +67,7 @@ function EmptyDash() {
 }
 
 function formatDate(d: string): string {
-  if (!d) return ''
-  const datePart = d.split('T')[0].split(' ')[0]
-  const [y, m, day] = datePart.split('-')
-  return `${day}/${m}/${y}`
+  return formatDueDate(d)
 }
 
 interface TableFilters {
@@ -183,9 +180,7 @@ export default function TableViewPage() {
     const titleTerm = deferredTitleSearch.toLowerCase().trim()
 
     return items.filter((item) => {
-      const itemCats = Array.isArray(item.category)
-        ? item.category
-        : (item.category || '').toString().split(',').map((c) => c.trim())
+      const itemCats = parseCategories(item.category)
 
       if (term) {
         const colName = (columnNames[item.columnId] ?? '').toLowerCase()
@@ -277,9 +272,8 @@ export default function TableViewPage() {
       ),
       dataIndex: 'category',
       key: 'category',
-      render: (category: string | string[]) => {
-        const catStr = Array.isArray(category) ? category.join(', ') : (category || '')
-        return <span className="text-slate-900 dark:text-white text-sm">{catStr || <EmptyDash />}</span>
+      render: (category: string) => {
+        return <span className="text-slate-900 dark:text-white text-sm">{category || <EmptyDash />}</span>
       },
     },
     {

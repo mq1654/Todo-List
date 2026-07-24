@@ -4,7 +4,7 @@ import { ClipboardList, Activity, CheckCircle2, AlertTriangle, type LucideIcon }
 import { Pie, Column } from '@ant-design/charts'
 import { Button, Segmented, Typography, Card } from 'antd'
 import { useStore, useTodoStats, useTodoItems, useRecentTasks, useDueSoonTasks } from '../store'
-import { isOverdue } from '../utils/todoHelpers'
+import { isOverdue, formatDueDate } from '../utils/todoHelpers'
 import { keepParams, TABLE_KEYS } from '../utils/urlHelpers'
 
 interface StatCard { key: string; label: string; icon: LucideIcon; color: string; bg: string }
@@ -48,8 +48,7 @@ const PIE_BASE = {
   height: 270,
 }
 
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+const fmtDate = (iso: string) => formatDueDate(iso)
 
 function DashboardStats() {
   const { totalCount, activeCount, completedCount, overdueCount } = useTodoStats()

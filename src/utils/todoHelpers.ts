@@ -1,4 +1,5 @@
-import type { Todo } from '../store/types';
+import type { Todo, TodoPayload } from '../store/types';
+import dayjs from 'dayjs';
 
 export function getPriorityColor(priority: Todo['priority']) {
   if (priority === 'High') return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50'
@@ -6,10 +7,43 @@ export function getPriorityColor(priority: Todo['priority']) {
   return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
 }
 
-export function isOverdue(dueDate: string | null, completed: boolean) {
+export function parseCategories(categoryStr: string | null | undefined): string[] {
+  if (!categoryStr) return []
+  return [...new Set(categoryStr.split(',').map((c) => c.trim()).filter(Boolean))]
+}
+
+export function buildTodoPayload(
+  id: string,
+  item: { title?: string; description?: string; category?: string; priority?: Todo['priority']; dueDate?: string | null } | undefined | null,
+  overrides: Partial<TodoPayload> = {}
+): TodoPayload & { id: string } {
+  return {
+    id,
+    title: item?.title || '',
+    description: item?.description || '',
+    category: item?.category || '',
+    priority: item?.priority || 'Low',
+    dueDate: item?.dueDate || null,
+    ...overrides,
+  }
+}
+
+export function formatDueDate(dueDate: string | null | undefined): string {
+  if (!dueDate) return ''
+  const parsed = dayjs(dueDate)
+  if (!parsed.isValid()) return ''
+  return parsed.format('HH:mm DD/MM/YYYY')
+}
+
+export function isOverdue(dueDate: string | null | undefined, completed: boolean): boolean {
   if (completed || !dueDate) return false
-  const todayStr = new Date().toISOString().split('T')[0]
-  return dueDate < todayStr
+  const parsed = dayjs(dueDate)
+  if (!parsed.isValid()) return false
+  const hasTime = dueDate.includes('T') || /\d{1,2}:\d{2}/.test(dueDate)
+  if (hasTime) {
+    return parsed.isBefore(dayjs())
+  }
+  return parsed.endOf('day').isBefore(dayjs())
 }
 
 function escapeCSVField(value: string | boolean | undefined | null): string {

@@ -1,21 +1,19 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Input, Button, Popconfirm, Switch, Typography, Card } from 'antd'
+import { Input, Button, Popconfirm, Switch, Typography, Card, message } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons'
 import { ArrowLeft } from 'lucide-react'
-import { useStore, useTodoItems } from '../store'
+import { useStore } from '../store'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
   const theme = useStore((s) => s.settings.theme)
   const categories = useStore((s) => s.settings.categories)
-  const items = useTodoItems()
 
   const toggleTheme = useStore((s) => s.settings.toggleTheme)
   const addCategory = useStore((s) => s.settings.addCategory)
   const removeCategory = useStore((s) => s.settings.removeCategory)
   const renameCategory = useStore((s) => s.settings.renameCategory)
-  const migrateCategory = useStore((s) => s.todos.migrateCategory)
 
   const [newCat, setNewCat] = useState('')
   const [editingCat, setEditingCat] = useState<string | null>(null)
@@ -32,18 +30,15 @@ export default function SettingsPage() {
   function handleRenameCategory(oldCat: string) {
     const newTrimmed = editCatName.trim()
     if (!newTrimmed || newTrimmed === oldCat) { setEditingCat(null); return }
-    if (categories.includes(newTrimmed)) { alert('Category already exists!'); return }
+    if (categories.includes(newTrimmed)) {
+      message.warning('Category already exists!')
+      return
+    }
     renameCategory({ oldName: oldCat, newName: newTrimmed })
-    migrateCategory({ from: oldCat, to: newTrimmed })
     setEditingCat(null)
   }
 
   function handleDeleteCategory(cat: string) {
-    const tasksInCat = items.filter((item) => item.category === cat)
-    if (tasksInCat.length > 0) {
-      if (!categories.includes('Uncategorized')) addCategory('Uncategorized')
-      migrateCategory({ from: cat, to: 'Uncategorized' })
-    }
     removeCategory(cat)
   }
 
@@ -133,11 +128,7 @@ export default function SettingsPage() {
                           />
                           <Popconfirm
                             title={`Delete "${cat}"?`}
-                            description={
-                              items.filter((i) => i.category === cat).length > 0
-                                ? 'Tasks in this category will be moved to "Uncategorized".'
-                                : 'This action cannot be undone.'
-                            }
+                            description="Tasks in this category will be updated automatically."
                             onConfirm={() => handleDeleteCategory(cat)}
                             okText="Delete"
                             okButtonProps={{ danger: true }}

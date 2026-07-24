@@ -1,6 +1,7 @@
 import { useCallback, useDeferredValue } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { Todo } from '../store/types'
+import { parseCategories, isOverdue } from '../utils/todoHelpers'
 
 const priorityValue: Record<string, number> = { High: 3, Medium: 2, Low: 1 }
 
@@ -12,21 +13,18 @@ function applyFilters(
   showOverdueOnly: boolean
 ): Todo[] {
   const term = searchTerm.toLowerCase().trim()
-  const todayStr = new Date().toISOString().split('T')[0]
 
   let result = items
 
   if (categoryFilter !== 'all') {
     result = result.filter((item) => {
-      const itemCats = Array.isArray(item.category)
-        ? item.category
-        : (item.category || '').toString().split(',').map((c) => c.trim())
+      const itemCats = parseCategories(item.category)
       return itemCats.includes(categoryFilter)
     })
   }
 
   if (showOverdueOnly) {
-    result = result.filter((item) => !item.completed && !!item.dueDate && item.dueDate < todayStr)
+    result = result.filter((item) => isOverdue(item.dueDate, item.completed))
   }
 
   if (term) {
